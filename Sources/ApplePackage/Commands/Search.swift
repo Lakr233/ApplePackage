@@ -28,7 +28,7 @@ public enum Searcher {
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
                     read: .seconds(Configuration.timeoutRead)
-                ),
+                )
             ).then { $0.httpVersion = .http1Only }
         )
         defer { _ = client.shutdown() }
@@ -43,10 +43,11 @@ public enum Searcher {
 
         try ensure(response.status == .ok, "search request failed with status \(response.status.code)")
         guard var body = response.body,
-              let data = body.readData(length: body.readableBytes)
+              let bytes = body.readBytes(length: body.readableBytes)
         else {
             try ensureFailed("response body is empty")
         }
+        let data = Data(bytes)
 
         let decoder = JSONDecoder()
         let searchResponse = try decoder.decode(SearchResponse.self, from: data)

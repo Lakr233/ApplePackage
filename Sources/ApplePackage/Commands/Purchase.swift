@@ -44,7 +44,7 @@ public enum Purchase {
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
                     read: .seconds(Configuration.timeoutRead)
-                ),
+                )
             ).then { $0.httpVersion = .http1Only }
         )
         defer { _ = client.shutdown() }
@@ -62,10 +62,11 @@ public enum Purchase {
         try ensure(response.status == .ok, "purchase request failed with status \(response.status.code)")
 
         guard var body = response.body,
-              let data = body.readData(length: body.readableBytes)
+              let bytes = body.readBytes(length: body.readableBytes)
         else {
             try ensureFailed("response body is empty")
         }
+        let data = Data(bytes)
 
         let plist = try PropertyListSerialization.propertyList(
             from: data,

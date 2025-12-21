@@ -50,7 +50,7 @@ public extension Cookie {
             domain: cookie.domain,
             expiresAt: expires,
             httpOnly: cookie.httpOnly,
-            secure: cookie.secure,
+            secure: cookie.secure
         )
     }
 }

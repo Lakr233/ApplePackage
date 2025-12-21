@@ -33,7 +33,7 @@ public enum Authenticator {
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
                     read: .seconds(Configuration.timeoutRead)
-                ),
+                )
             ).then { $0.httpVersion = .http1Only }
         )
         defer { _ = client.shutdown() }
@@ -180,10 +180,11 @@ public enum Authenticator {
         }
 
         guard var body = response.body,
-              let data = body.readData(length: body.readableBytes)
+              let bytes = body.readBytes(length: body.readableBytes)
         else {
             return .failure("response body is empty")
         }
+        let data = Data(bytes)
 
         let listItem = try PropertyListSerialization.propertyList(
             from: data,

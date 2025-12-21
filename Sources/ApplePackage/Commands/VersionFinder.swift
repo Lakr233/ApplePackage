@@ -26,7 +26,7 @@ public enum VersionFinder {
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
                     read: .seconds(Configuration.timeoutRead)
-                ),
+                )
             ).then { $0.httpVersion = .http1Only }
         )
         defer { _ = client.shutdown() }
@@ -68,10 +68,11 @@ public enum VersionFinder {
         try ensure(finalResponse.status == .ok, "invalid response status \(finalResponse.status.code)")
 
         guard var body = finalResponse.body,
-              let data = body.readData(length: body.readableBytes)
+              let bytes = body.readBytes(length: body.readableBytes)
         else {
             try ensureFailed("response body is empty")
         }
+        let data = Data(bytes)
 
         let plist = try PropertyListSerialization.propertyList(
             from: data,
