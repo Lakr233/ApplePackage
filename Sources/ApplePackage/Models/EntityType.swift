@@ -7,7 +7,11 @@
 
 import Foundation
 
-public enum EntityType: String, Codable, CaseIterable, Hashable, Equatable {
+public enum EntityType: String, Codable, CaseIterable, Hashable, Equatable, Identifiable {
+    public var id: Self {
+        self
+    }
+
     case iPhone
     case iPad
 }

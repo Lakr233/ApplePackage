@@ -37,11 +37,10 @@ public enum Lookup {
         try ensure(response.status == .ok, "lookup request failed with status \(response.status.code)")
 
         guard var body = response.body,
-              let bytes = body.readBytes(length: body.readableBytes)
+              let data = body.readData(length: body.readableBytes)
         else {
             try ensureFailed("response body is empty")
         }
-        let data = Data(bytes)
 
         let decoder = JSONDecoder()
         let lookupResponse = try decoder.decode(LookupResponse.self, from: data)

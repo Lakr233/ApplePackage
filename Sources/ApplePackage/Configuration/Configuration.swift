@@ -10,7 +10,7 @@ import Foundation
 import NIOSSL
 
 public enum Configuration {
-    /*
+    /**
      DeviceIdentifier is a unique identifier for your device.
 
      - On macOS, it is a MAC address and can be read by calling DeviceIdentifier.system.
@@ -19,7 +19,7 @@ public enum Configuration {
      **It is a must set value before any network request**
      **otherwise your account may be locked for security reason**
      */
-    public static var deviceIdentifier: String = (try? DeviceIdentifier.system()) ?? "" {
+    public nonisolated(unsafe) static var deviceIdentifier: String = (try? DeviceIdentifier.system()) ?? "" {
         didSet {
             assert(!deviceIdentifier.contains(":"))
             assert(!deviceIdentifier.contains("-"))
@@ -28,9 +28,9 @@ public enum Configuration {
         }
     }
 
-    public static var userAgent: String = "Configurator/2.17 (Macintosh; OS X 15.2; 24C5089c) AppleWebKit/0620.1.16.11.6"
+    public nonisolated(unsafe) static var userAgent: String = "Configurator/2.17 (Macintosh; OS X 15.2; 24C5089c) AppleWebKit/0620.1.16.11.6"
 
-    public static var tlsConfiguration: TLSConfiguration = {
+    public nonisolated(unsafe) static var tlsConfiguration: TLSConfiguration = {
         precondition(!deviceIdentifier.isEmpty, "deviceIdentifier must be set")
         #if DEBUG
             var conf = TLSConfiguration.makeClientConfiguration()
@@ -41,20 +41,24 @@ public enum Configuration {
         #endif
     }()
 
-    public static var storeFrontValues: [String: String] = kCountryCodes
-    public static var timeoutConnect: Int64 = 10
-    public static var timeoutRead: Int64 = 30
+    public static let storeFrontValues: [String: String] = kCountryCodes
+    public static let timeoutConnect: Int64 = 10
+    public static let timeoutRead: Int64 = 30
 
     #if os(macOS)
-        public static var homePath: URL = FileManager.default
+        public nonisolated(unsafe) static var homePath: URL = FileManager.default
             .homeDirectoryForCurrentUser
             .appendingPathComponent(".ipatool", isDirectory: true)
-        { didSet { assert(homePath.isFileURL) } }
+        {
+            didSet { assert(homePath.isFileURL) }
+        }
     #else
-        public static var homePath: URL = FileManager.default
+        public nonisolated(unsafe) static var homePath: URL = FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask).first!
             .appendingPathComponent(".ipatool", isDirectory: true)
-        { didSet { assert(homePath.isFileURL) } }
+        {
+            didSet { assert(homePath.isFileURL) }
+        }
     #endif
 
     public static func storeId(for countryCode: String) -> String? {

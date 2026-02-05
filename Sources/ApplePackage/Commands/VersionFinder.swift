@@ -68,11 +68,10 @@ public enum VersionFinder {
         try ensure(finalResponse.status == .ok, "invalid response status \(finalResponse.status.code)")
 
         guard var body = finalResponse.body,
-              let bytes = body.readBytes(length: body.readableBytes)
+              let data = body.readData(length: body.readableBytes)
         else {
             try ensureFailed("response body is empty")
         }
-        let data = Data(bytes)
 
         let plist = try PropertyListSerialization.propertyList(
             from: data,
@@ -82,7 +81,21 @@ public enum VersionFinder {
         guard let dict = plist else { try ensureFailed("invalid response") }
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
-            try ensureFailed("no items in response")
+            if let failureType = dict["failureType"] as? String {
+                switch failureType {
+                case "2034":
+                    try ensureFailed("password token is expired")
+                case "9610":
+                    throw ApplePackageError.licenseRequired
+                default:
+                    if let customerMessage = dict["customerMessage"] as? String {
+                        try ensureFailed(customerMessage)
+                    }
+                    try ensureFailed("no items in response")
+                }
+            } else {
+                try ensureFailed("no items in response")
+            }
         }
 
         let item = items[0]

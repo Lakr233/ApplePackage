@@ -205,15 +205,12 @@ private func digestWithMD5(_ bytes: [Byte]) -> Digest {
 private func encodeMD5(digest: [Byte]) -> String {
     assert(digest.count == 16)
 
-    let str = digest.reduce("") { str, byte in
+    return digest.reduce("") { str, byte in
         let radix = 16
         let s = String(byte, radix: radix)
         // Ensure byte values less than 16 are padding with a leading 0
-        let sum = str + (byte < Byte(radix) ? "0" : "") + s
-        return sum
+        return str + (byte < Byte(radix) ? "0" : "") + s
     }
-
-    return str
 }
 
 extension String {

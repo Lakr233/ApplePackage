@@ -62,11 +62,10 @@ public enum Purchase {
         try ensure(response.status == .ok, "purchase request failed with status \(response.status.code)")
 
         guard var body = response.body,
-              let bytes = body.readBytes(length: body.readableBytes)
+              let data = body.readData(length: body.readableBytes)
         else {
             try ensureFailed("response body is empty")
         }
-        let data = Data(bytes)
 
         let plist = try PropertyListSerialization.propertyList(
             from: data,

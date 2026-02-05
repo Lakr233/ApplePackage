@@ -21,9 +21,10 @@ public struct Software: Codable, Equatable, Hashable, Identifiable {
     public var artworkUrl: String
     public var screenshotUrls: [String]
     public var minimumOsVersion: String
+    public var fileSizeBytes: String?
     public var releaseDate: String
     public var releaseNotes: String?
-    public var formattedPrice: String
+    public var formattedPrice: String?
     public var primaryGenreName: String
 
     private enum CodingKeys: String, CodingKey {
@@ -40,6 +41,7 @@ public struct Software: Codable, Equatable, Hashable, Identifiable {
         case artworkUrl = "artworkUrl512"
         case screenshotUrls
         case minimumOsVersion
+        case fileSizeBytes
         case releaseDate = "currentVersionReleaseDate"
         case releaseNotes
         case formattedPrice
@@ -60,8 +62,9 @@ public struct Software: Codable, Equatable, Hashable, Identifiable {
         artworkUrl: String,
         screenshotUrls: [String],
         minimumOsVersion: String,
+        fileSizeBytes: String? = nil,
         releaseDate: String,
-        formattedPrice: String,
+        formattedPrice: String? = nil,
         primaryGenreName: String
     ) {
         self.id = id
@@ -76,6 +79,7 @@ public struct Software: Codable, Equatable, Hashable, Identifiable {
         self.userRatingCount = userRatingCount
         self.artworkUrl = artworkUrl
         self.screenshotUrls = screenshotUrls
+        self.fileSizeBytes = fileSizeBytes
         self.minimumOsVersion = minimumOsVersion
         self.releaseDate = releaseDate
         self.formattedPrice = formattedPrice

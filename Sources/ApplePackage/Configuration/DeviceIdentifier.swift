@@ -12,23 +12,6 @@ public enum DeviceIdentifier {
         #if os(iOS)
             // https://developer.apple.com/library/archive/releasenotes/General/WhatsNewIniOS/Articles/iOS7.html#:~:text=returns%20the%20value-,02:00:00:00:00:00,-.%20If%20you%20need
             try ensureFailed("will always return: 02:00:00:00:00:00")
-        #elseif os(Linux)
-            let basePath = "/sys/class/net"
-            let entries = (try? FileManager.default.contentsOfDirectory(atPath: basePath)) ?? []
-            let candidates = entries.filter { $0 != "lo" }
-            for name in candidates {
-                let addressPath = "\(basePath)/\(name)/address"
-                if let address = try? String(contentsOfFile: addressPath, encoding: .utf8) {
-                    let result = address
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                        .replacingOccurrences(of: ":", with: "")
-                        .uppercased()
-                    if result.count == 12 {
-                        return result
-                    }
-                }
-            }
-            try ensureFailed("unable to get mac address")
         #else
             let MAC_ADDRESS_LENGTH = 6
             let bsds: [String] = ["en0", "en1"]

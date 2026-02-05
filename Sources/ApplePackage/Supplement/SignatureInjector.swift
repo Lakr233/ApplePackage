@@ -44,8 +44,7 @@ public enum SignatureInjector {
             if entry.path.hasSuffix(".app/SC_Info/Manifest.plist") {
                 var data = Data()
                 _ = try archive.extract(entry, consumer: { data.append($0) })
-                let manifest = try PropertyListDecoder().decode(PackageManifest.self, from: data)
-                return manifest
+                return try PropertyListDecoder().decode(PackageManifest.self, from: data)
             }
         }
         return nil
@@ -56,8 +55,7 @@ public enum SignatureInjector {
             if entry.path.contains(".app/Info.plist") {
                 var data = Data()
                 _ = try archive.extract(entry, consumer: { data.append($0) })
-                let info = try PropertyListDecoder().decode(PackageInfo.self, from: data)
-                return info
+                return try PropertyListDecoder().decode(PackageInfo.self, from: data)
             }
         }
         return nil

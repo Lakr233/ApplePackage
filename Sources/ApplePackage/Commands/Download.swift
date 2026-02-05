@@ -12,7 +12,7 @@ public enum Download {
     public nonisolated static func download(
         account: inout Account,
         app: Software,
-        externalVersionID: String = ""
+        externalVersionID: String? = nil
     ) async throws -> DownloadOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
 
@@ -33,7 +33,7 @@ public enum Download {
             account: account,
             app: app,
             guid: deviceIdentifier,
-            externalVersionID: externalVersionID
+            externalVersionID: externalVersionID ?? ""
         )
         let response = try await client.execute(request: request).get()
 
@@ -42,11 +42,10 @@ public enum Download {
         try ensure(response.status == .ok, "download request failed with status \(response.status.code)")
 
         guard var body = response.body,
-              let bytes = body.readBytes(length: body.readableBytes)
+              let data = body.readData(length: body.readableBytes)
         else {
             try ensureFailed("response body is empty")
         }
-        let data = Data(bytes)
 
         let plist = try PropertyListSerialization.propertyList(
             from: data,

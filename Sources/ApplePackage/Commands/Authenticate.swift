@@ -180,11 +180,10 @@ public enum Authenticator {
         }
 
         guard var body = response.body,
-              let bytes = body.readBytes(length: body.readableBytes)
+              let data = body.readData(length: body.readableBytes)
         else {
-            return .failure("response body is empty")
+            return .failure("response body is empty (code: \(response.status.code))")
         }
-        let data = Data(bytes)
 
         let listItem = try PropertyListSerialization.propertyList(
             from: data,

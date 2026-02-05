@@ -5,6 +5,7 @@
 //  Created by qaq on 9/15/25.
 //
 
+import CryptoKit
 import Foundation
 
 public func saveLoginAccount(_ account: Account, for email: String) {
