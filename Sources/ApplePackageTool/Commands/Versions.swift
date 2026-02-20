@@ -12,7 +12,7 @@ import Foundation
 struct Versions: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "versions",
-        abstract: "List versions of an app",
+        abstract: "List versions of an app"
     )
 
     @OptionGroup var globalOptions: GlobalOptions

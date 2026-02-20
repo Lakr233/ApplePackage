@@ -20,7 +20,7 @@ final class ApplePackageAccountTests: XCTestCase {
             passwordToken: "token",
             directoryServicesIdentifier: "ds123",
             cookie: [],
-            pod: "42",
+            pod: "42"
         )
         let data = try JSONEncoder().encode(account)
         let decoded = try JSONDecoder().decode(Account.self, from: data)
@@ -38,7 +38,7 @@ final class ApplePackageAccountTests: XCTestCase {
             lastName: "Doe",
             passwordToken: "token",
             directoryServicesIdentifier: "ds123",
-            cookie: [],
+            cookie: []
         )
         let data = try JSONEncoder().encode(account)
         let decoded = try JSONDecoder().decode(Account.self, from: data)
@@ -79,7 +79,7 @@ final class ApplePackageAccountTests: XCTestCase {
             passwordToken: "token" as String?,
             directoryServicesIdentifier: "ds123" as String?,
             cookie: [],
-            pod: "99",
+            pod: "99"
         )
         XCTAssertEqual(account.pod, "99")
     }
@@ -96,8 +96,8 @@ final class ApplePackageAccountTests: XCTestCase {
                 lastName: "Doe" as String?,
                 passwordToken: "token" as String?,
                 directoryServicesIdentifier: "ds123" as String?,
-                cookie: [],
-            ),
+                cookie: []
+            )
         )
     }
 
@@ -113,8 +113,8 @@ final class ApplePackageAccountTests: XCTestCase {
                 lastName: "Doe" as String?,
                 passwordToken: "token" as String?,
                 directoryServicesIdentifier: "ds123" as String?,
-                cookie: [],
-            ),
+                cookie: []
+            )
         )
     }
 
@@ -130,8 +130,8 @@ final class ApplePackageAccountTests: XCTestCase {
                 lastName: "Doe" as String?,
                 passwordToken: "token" as String?,
                 directoryServicesIdentifier: "ds123" as String?,
-                cookie: [],
-            ),
+                cookie: []
+            )
         )
     }
 
@@ -146,8 +146,8 @@ final class ApplePackageAccountTests: XCTestCase {
                 lastName: "Doe" as String?,
                 passwordToken: "token" as String?,
                 directoryServicesIdentifier: "ds123" as String?,
-                cookie: [],
-            ),
+                cookie: []
+            )
         )
     }
 }

@@ -32,5 +32,5 @@ let package = Package(
             .product(name: "Logging", package: "swift-log"),
         ]),
         .testTarget(name: "ApplePackageTests", dependencies: ["ApplePackage"]),
-    ],
+    ]
 )

@@ -12,7 +12,7 @@ import Foundation
 struct Login: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "login",
-        abstract: "Login to Apple account",
+        abstract: "Login to Apple account"
     )
 
     @OptionGroup var globalOptions: GlobalOptions

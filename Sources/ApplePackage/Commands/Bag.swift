@@ -25,9 +25,9 @@ public enum Bag {
                 redirectConfiguration: .follow(max: 8, allowCycles: false),
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead),
-                ),
-            ).then { $0.httpVersion = .http1Only },
+                    read: .seconds(Configuration.timeoutRead)
+                )
+            ).then { $0.httpVersion = .http1Only }
         )
         defer { _ = client.shutdown() }
 
@@ -51,7 +51,7 @@ public enum Bag {
         let request = try HTTPClient.Request(
             url: url.absoluteString,
             method: .GET,
-            headers: .init(headers),
+            headers: .init(headers)
         )
 
         let response = try await client.execute(request: request).get()
@@ -59,7 +59,7 @@ public enum Bag {
         APLogger.logResponse(
             status: response.status.code,
             headers: response.headers.map { ($0.name, $0.value) },
-            bodySize: response.body?.readableBytes,
+            bodySize: response.body?.readableBytes
         )
 
         guard var body = response.body,
@@ -74,7 +74,7 @@ public enum Bag {
         guard let plist = try? PropertyListSerialization.propertyList(
             from: plistData,
             options: [],
-            format: nil,
+            format: nil
         ) as? [String: Any] else {
             APLogger.debug("bag: failed to parse plist, using default auth endpoint")
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)

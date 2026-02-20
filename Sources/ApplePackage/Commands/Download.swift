@@ -12,7 +12,7 @@ public enum Download {
     public nonisolated static func download(
         account: inout Account,
         app: Software,
-        externalVersionID: String? = nil,
+        externalVersionID: String? = nil
     ) async throws -> DownloadOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
 
@@ -23,9 +23,9 @@ public enum Download {
                 redirectConfiguration: .disallow,
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead),
-                ),
-            ).then { $0.httpVersion = .http1Only },
+                    read: .seconds(Configuration.timeoutRead)
+                )
+            ).then { $0.httpVersion = .http1Only }
         )
         defer { _ = client.shutdown() }
 
@@ -33,14 +33,14 @@ public enum Download {
             account: account,
             app: app,
             guid: deviceIdentifier,
-            externalVersionID: externalVersionID ?? "",
+            externalVersionID: externalVersionID ?? ""
         )
         let response = try await client.execute(request: request).get()
 
         APLogger.logResponse(
             status: response.status.code,
             headers: response.headers.map { ($0.name, $0.value) },
-            bodySize: response.body?.readableBytes,
+            bodySize: response.body?.readableBytes
         )
 
         account.cookie.mergeCookies(response.cookies)
@@ -56,7 +56,7 @@ public enum Download {
         let plist = try PropertyListSerialization.propertyList(
             from: data,
             options: [],
-            format: nil,
+            format: nil
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
@@ -104,7 +104,7 @@ public enum Download {
         let iTunesMetadata = try PropertyListSerialization.data(
             fromPropertyList: metadata,
             format: .binary,
-            options: 0,
+            options: 0
         )
 
         var sinfs: [Sinf] = []
@@ -126,7 +126,7 @@ public enum Download {
             sinfs: sinfs,
             bundleShortVersionString: version,
             bundleVersion: bundleVersion,
-            iTunesMetadata: iTunesMetadata,
+            iTunesMetadata: iTunesMetadata
         )
     }
 
@@ -134,7 +134,7 @@ public enum Download {
         account: Account,
         app: Software,
         guid: String,
-        externalVersionID: String,
+        externalVersionID: String
     ) throws -> HTTPClient.Request {
         var payload: [String: Any] = [
             "creditDisplay": "",
@@ -168,7 +168,7 @@ public enum Download {
             url: urlString,
             method: .POST,
             headers: .init(headers),
-            body: .data(data),
+            body: .data(data)
         )
     }
 }

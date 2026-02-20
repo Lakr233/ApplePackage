@@ -52,7 +52,7 @@ final class ApplePackagePurchaseTests: XCTestCase {
                     minimumOsVersion: "14.0",
                     releaseDate: "2023-01-01T00:00:00Z",
                     formattedPrice: "$4.99",
-                    primaryGenreName: "Utilities",
+                    primaryGenreName: "Utilities"
                 )
                 try await Purchase.purchase(account: &account, app: paidApp)
                 XCTFail("should fail with paid app")

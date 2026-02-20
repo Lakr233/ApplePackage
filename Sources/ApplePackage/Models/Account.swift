@@ -38,7 +38,7 @@ public struct Account: Codable, Hashable, Equatable, Sendable, CustomStringConve
         passwordToken: String,
         directoryServicesIdentifier: String,
         cookie: [Cookie],
-        pod: String? = nil,
+        pod: String? = nil
     ) {
         self.email = email
         self.password = password
@@ -64,7 +64,7 @@ public extension Account {
         passwordToken: String?,
         directoryServicesIdentifier: String?,
         cookie: [Cookie],
-        pod: String? = nil,
+        pod: String? = nil
     ) throws {
         try ensure(!email.isEmpty, Strings.emptyEmail)
         try ensure(!password.isEmpty, Strings.emptyPassword)

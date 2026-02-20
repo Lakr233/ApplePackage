@@ -24,7 +24,7 @@ public struct Cookie: Sendable, Codable, Equatable, Hashable {
         domain: String? = nil,
         expiresAt: TimeInterval? = nil,
         httpOnly: Bool,
-        secure: Bool,
+        secure: Bool
     ) {
         self.name = name
         self.value = value
@@ -50,7 +50,7 @@ public extension Cookie {
             domain: cookie.domain,
             expiresAt: expires,
             httpOnly: cookie.httpOnly,
-            secure: cookie.secure,
+            secure: cookie.secure
         )
     }
 }
@@ -76,7 +76,7 @@ public extension [Cookie] {
             for: endpoint,
             components: components,
             requestHost: requestHost,
-            requestPath: requestPath,
+            requestPath: requestPath
         )
 
         guard !validCookies.isEmpty else {
@@ -91,7 +91,7 @@ public extension [Cookie] {
         for endpoint: URL,
         components: URLComponents,
         requestHost: String,
-        requestPath: String,
+        requestPath: String
     ) -> [String] {
         var validCookies: [String] = []
 
@@ -102,7 +102,7 @@ public extension [Cookie] {
                 for: endpoint,
                 components: components,
                 requestHost: requestHost,
-                requestPath: requestPath,
+                requestPath: requestPath
             ) else { continue }
             validCookies.append("\(cookie.name)=\(cookie.value)")
         }
@@ -115,7 +115,7 @@ public extension [Cookie] {
         for _: URL,
         components: URLComponents,
         requestHost: String,
-        requestPath: String,
+        requestPath: String
     ) -> Bool {
         if let cookieDomain = cookie.domain {
             guard matchesDomain(cookieDomain: cookieDomain, requestHost: requestHost) else {

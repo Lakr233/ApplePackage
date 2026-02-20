@@ -12,7 +12,7 @@ public enum SignatureInjector {
     public static func inject(
         sinfs: [Sinf],
         iTunesMetadata: Data,
-        into packagePath: String,
+        into packagePath: String
     ) async throws {
         let archive = try Archive(url: URL(fileURLWithPath: packagePath), accessMode: .update)
 
@@ -68,7 +68,7 @@ public enum SignatureInjector {
         _ manifest: PackageManifest,
         into archive: Archive,
         sinfs: [Sinf],
-        bundleName: String,
+        bundleName: String
     ) throws {
         for (index, sinfPath) in manifest.sinfPaths.enumerated() {
             guard index < sinfs.count else { continue }
@@ -87,7 +87,7 @@ public enum SignatureInjector {
 
     private static func injectMetadata(
         _ metadata: Data,
-        into archive: Archive,
+        into archive: Archive
     ) throws {
         let path = "iTunesMetadata.plist"
         guard archive[path] == nil else { return }
@@ -100,7 +100,7 @@ public enum SignatureInjector {
                 let start = metadata.startIndex.advanced(by: Int(position))
                 let end = start.advanced(by: size)
                 return metadata.subdata(in: start ..< end)
-            },
+            }
         )
     }
 
@@ -108,7 +108,7 @@ public enum SignatureInjector {
         _ info: PackageInfo,
         into archive: Archive,
         sinfs: [Sinf],
-        bundleName: String,
+        bundleName: String
     ) throws {
         guard let sinf = sinfs.first else { return }
         let sinfPath = "Payload/\(bundleName).app/SC_Info/\(info.bundleExecutable).sinf"

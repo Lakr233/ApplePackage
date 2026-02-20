@@ -19,7 +19,7 @@ public struct DownloadOutput: Codable, Hashable, Equatable, Sendable {
         sinfs: [Sinf],
         bundleShortVersionString: String,
         bundleVersion: String,
-        iTunesMetadata: Data,
+        iTunesMetadata: Data
     ) {
         self.downloadURL = downloadURL
         self.sinfs = sinfs
