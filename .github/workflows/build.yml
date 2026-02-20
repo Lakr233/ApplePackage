@@ -29,10 +29,6 @@ jobs:
             destination: "generic/platform=tvOS"
           - platform: tvOS Simulator
             destination: "generic/platform=tvOS Simulator"
-          - platform: watchOS
-            destination: "generic/platform=watchOS"
-          - platform: watchOS Simulator
-            destination: "generic/platform=watchOS Simulator"
           - platform: visionOS
             destination: "generic/platform=xrOS"
           - platform: visionOS Simulator
