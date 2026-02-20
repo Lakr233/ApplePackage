@@ -61,6 +61,20 @@ public enum Configuration {
         }
     #endif
 
+    public static func storeAPIHost(pod: String?) -> String {
+        guard let pod, !pod.isEmpty else {
+            return "p25-buy.itunes.apple.com"
+        }
+        return "p\(pod)-buy.itunes.apple.com"
+    }
+
+    public static func purchaseAPIHost(pod: String?) -> String {
+        guard let pod, !pod.isEmpty else {
+            return "buy.itunes.apple.com"
+        }
+        return "p\(pod)-buy.itunes.apple.com"
+    }
+
     public static func storeId(for countryCode: String) -> String? {
         storeFrontValues[countryCode]
     }

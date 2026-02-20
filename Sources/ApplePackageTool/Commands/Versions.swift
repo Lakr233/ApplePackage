@@ -15,6 +15,8 @@ struct Versions: AsyncParsableCommand {
         abstract: "List versions of an app"
     )
 
+    @OptionGroup var globalOptions: GlobalOptions
+
     @Argument(help: "Email address")
     var email: String
 
@@ -22,6 +24,7 @@ struct Versions: AsyncParsableCommand {
     var bundleID: String
 
     func run() async throws {
+        globalOptions.apply()
         try await Configuration.withAccount(email: email) { account in
             let versions = try await VersionFinder.list(account: &account, bundleIdentifier: bundleID)
             for version in versions {

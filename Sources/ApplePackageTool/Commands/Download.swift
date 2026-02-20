@@ -15,6 +15,8 @@ struct Download: AsyncParsableCommand {
         abstract: "Download an app"
     )
 
+    @OptionGroup var globalOptions: GlobalOptions
+
     @Argument(help: "Email address")
     var email: String
 
@@ -28,6 +30,7 @@ struct Download: AsyncParsableCommand {
     var output: String
 
     func run() async throws {
+        globalOptions.apply()
         try await Configuration.withAccount(email: email) { account in
             try await Authenticator.rotatePasswordToken(for: &account)
             guard let country = Configuration.countryCode(for: account.store) else {

@@ -18,6 +18,7 @@ public struct Account: Codable, Hashable, Equatable, Sendable {
     public var passwordToken: String // /passwordToken
     public var directoryServicesIdentifier: String // /dsPersonId
     public var cookie: [Cookie]
+    public var pod: String?
 
     public init(
         email: String,
@@ -28,7 +29,8 @@ public struct Account: Codable, Hashable, Equatable, Sendable {
         lastName: String,
         passwordToken: String,
         directoryServicesIdentifier: String,
-        cookie: [Cookie]
+        cookie: [Cookie],
+        pod: String? = nil
     ) {
         self.email = email
         self.password = password
@@ -39,6 +41,7 @@ public struct Account: Codable, Hashable, Equatable, Sendable {
         self.passwordToken = passwordToken
         self.directoryServicesIdentifier = directoryServicesIdentifier
         self.cookie = cookie
+        self.pod = pod
     }
 }
 
@@ -52,20 +55,22 @@ public extension Account {
         lastName: String?,
         passwordToken: String?,
         directoryServicesIdentifier: String?,
-        cookie: [Cookie]
+        cookie: [Cookie],
+        pod: String? = nil
     ) throws {
-        try ensure(!email.isEmpty, "empty email")
-        try ensure(!password.isEmpty, "empty password")
+        try ensure(!email.isEmpty, Strings.emptyEmail)
+        try ensure(!password.isEmpty, Strings.emptyPassword)
         self.email = email
         self.password = password
-        self.appleId = try appleId.get("unable to read appleId")
-        try ensure(!store.isEmpty, "unknown store identifier")
-        try ensure(Configuration.countryCode(for: store) != nil, "unsupported store identifier: \(store)")
+        self.appleId = try appleId.get(Strings.unableToReadAppleId)
+        try ensure(!store.isEmpty, Strings.unknownStoreIdentifier)
+        try ensure(Configuration.countryCode(for: store) != nil, Strings.unsupportedStoreIdentifier(store))
         self.store = store
-        self.firstName = try firstName.get("unable to read firstName")
-        self.lastName = try lastName.get("unable to read lastName")
-        self.passwordToken = try passwordToken.get("unable to read passwordToken")
-        self.directoryServicesIdentifier = try directoryServicesIdentifier.get("unable to read dsPersonId")
+        self.firstName = try firstName.get(Strings.unableToReadFirstName)
+        self.lastName = try lastName.get(Strings.unableToReadLastName)
+        self.passwordToken = try passwordToken.get(Strings.unableToReadPasswordToken)
+        self.directoryServicesIdentifier = try directoryServicesIdentifier.get(Strings.unableToReadDsPersonId)
         self.cookie = cookie
+        self.pod = pod
     }
 }

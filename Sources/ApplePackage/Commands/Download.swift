@@ -37,14 +37,20 @@ public enum Download {
         )
         let response = try await client.execute(request: request).get()
 
+        APLogger.logResponse(
+            status: response.status.code,
+            headers: response.headers.map { ($0.name, $0.value) },
+            bodySize: response.body?.readableBytes
+        )
+
         account.cookie.mergeCookies(response.cookies)
 
-        try ensure(response.status == .ok, "download request failed with status \(response.status.code)")
+        try ensure(response.status == .ok, Strings.requestFailed(status: response.status.code))
 
         guard var body = response.body,
               let data = body.readData(length: body.readableBytes)
         else {
-            try ensureFailed("response body is empty")
+            try ensureFailed(Strings.responseBodyEmpty)
         }
 
         let plist = try PropertyListSerialization.propertyList(
@@ -52,40 +58,44 @@ public enum Download {
             options: [],
             format: nil
         ) as? [String: Any]
-        guard let dict = plist else { try ensureFailed("invalid response") }
+        guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
         if let failureType = dict["failureType"] as? String {
+            let customerMessage = dict["customerMessage"] as? String
             switch failureType {
-            case "2034":
-                try ensureFailed("password token is expired")
+            case "2034", "2042":
+                try ensureFailed(Strings.passwordTokenExpired)
             case "9610":
                 throw ApplePackageError.licenseRequired
             default:
-                if let customerMessage = dict["customerMessage"] as? String {
+                if customerMessage == Strings.passwordChanged {
+                    try ensureFailed(Strings.passwordTokenExpired)
+                }
+                if let customerMessage {
                     try ensureFailed(customerMessage)
                 }
-                try ensureFailed("download failed: \(failureType)")
+                try ensureFailed("\(Strings.downloadFailed): \(failureType)")
             }
         }
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
-            try ensureFailed("no items in response")
+            try ensureFailed(Strings.noItemsInResponse)
         }
 
         let item = items[0]
         guard let url = item["URL"] as? String else {
-            try ensureFailed("missing download URL")
+            try ensureFailed(Strings.missingDownloadURL)
         }
 
         guard let metadata = item["metadata"] as? [String: Any] else {
-            try ensureFailed("missing metadata")
+            try ensureFailed(Strings.missingMetadata)
         }
 
         let version = (metadata["bundleShortVersionString"] as? String)
         let bundleVersion = metadata["bundleVersion"] as? String
 
         guard let version, let bundleVersion else {
-            try ensureFailed("missing required information")
+            try ensureFailed(Strings.missingRequiredInfo)
         }
 
         var sinfs: [Sinf] = []
@@ -96,11 +106,11 @@ public enum Download {
                 {
                     sinfs.append(Sinf(id: id, sinf: data))
                 } else {
-                    try ensureFailed("invalid sinf item")
+                    try ensureFailed(Strings.invalidSinfItem)
                 }
             }
         }
-        try ensure(!sinfs.isEmpty, "no sinf found in response")
+        try ensure(!sinfs.isEmpty, Strings.noSinfFound)
 
         return DownloadOutput(
             downloadURL: url,
@@ -135,12 +145,17 @@ public enum Download {
             ("X-Dsid", account.directoryServicesIdentifier),
         ]
 
-        for item in account.cookie.buildCookieHeader(URL(string: "https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct")!) {
+        let host = Configuration.storeAPIHost(pod: account.pod)
+        let urlString = "https://\(host)/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
+
+        for item in account.cookie.buildCookieHeader(URL(string: urlString)!) {
             headers.append(item)
         }
 
+        APLogger.logRequest(method: "POST", url: urlString, headers: headers)
+
         return try .init(
-            url: "https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct",
+            url: urlString,
             method: .POST,
             headers: .init(headers),
             body: .data(data)
