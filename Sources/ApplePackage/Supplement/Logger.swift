@@ -6,25 +6,29 @@
 //
 
 import Foundation
-import os
+import Logging
 
 public enum APLogger {
-    private static let logger = Logger(subsystem: "com.applepackage", category: "network")
-
     public nonisolated(unsafe) static var verbose: Bool = false
 
+    private nonisolated(unsafe) static var _logger: Logger = .init(label: "com.applepackage")
+
+    public static var logger: Logger {
+        get { _logger }
+        set { _logger = newValue }
+    }
+
     static func info(_ message: String) {
-        logger.info("\(message, privacy: .public)")
+        _logger.info("\(message)")
     }
 
     static func debug(_ message: String) {
         guard verbose else { return }
-        logger.debug("\(message, privacy: .public)")
-        print("[DEBUG] \(message)")
+        _logger.debug("\(message)")
     }
 
     static func error(_ message: String) {
-        logger.error("\(message, privacy: .public)")
+        _logger.error("\(message)")
     }
 
     static func logRequest(method: String, url: String, headers: [(String, String)] = []) {

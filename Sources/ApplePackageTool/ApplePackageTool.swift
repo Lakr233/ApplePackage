@@ -22,6 +22,7 @@ struct GlobalOptions: ParsableArguments {
         }
         if verbose {
             APLogger.verbose = true
+            APLogger.logger.logLevel = .debug
         }
     }
 }
