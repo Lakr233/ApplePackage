@@ -15,6 +15,8 @@ struct Login: AsyncParsableCommand {
         abstract: "Login to Apple account"
     )
 
+    @OptionGroup var globalOptions: GlobalOptions
+
     @Argument(help: "Email address")
     var email: String
 
@@ -25,6 +27,7 @@ struct Login: AsyncParsableCommand {
     var code: String?
 
     func run() async throws {
+        globalOptions.apply()
         do {
             let account = try await Authenticator.authenticate(email: email, password: password, code: code ?? "")
             Configuration.saveLoginAccount(account, for: email)

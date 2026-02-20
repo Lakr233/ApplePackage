@@ -25,6 +25,8 @@ public enum Authenticator {
     ) async throws -> Account {
         let deviceIdentifier = Configuration.deviceIdentifier
 
+        let bagOutput = try await Bag.fetchBag()
+
         let client = HTTPClient(
             eventLoopGroupProvider: .singleton,
             configuration: .init(
@@ -38,9 +40,10 @@ public enum Authenticator {
         )
         defer { _ = client.shutdown() }
 
-        var requestEndpoint: URL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier)
+        var requestEndpoint: URL = try createInitialRequestEndpoint(baseURL: bagOutput.authEndpoint, deviceIdentifier: deviceIdentifier)
         var cookies: [Cookie] = cookies
         var storeFront = ""
+        var pod: String?
         var currentAttempt = 1
         var redirectAttempt = 0
         var lastError: Error?
@@ -63,7 +66,8 @@ public enum Authenticator {
                     password: password,
                     code: code,
                     cookies: &cookies,
-                    storeFront: &storeFront
+                    storeFront: &storeFront,
+                    pod: &pod
                 )
                 switch result {
                 case let .success(account):
@@ -75,11 +79,11 @@ public enum Authenticator {
                     continue
                 case .codeRequired:
                     currentAttempt += 65535 // stop attempts
-                    try ensureFailed("Authentication requires verification code\nIf no verification code prompted, try logging in at https://account.apple.com to trigger the alert and fill the code in the 2FA Code here.")
+                    try ensureFailed(Strings.authRequiresVerificationCode)
                 case .retry:
                     continue
                 case let .failure(string):
-                    try ensureFailed("authentication failed: \(string)")
+                    try ensureFailed("\(Strings.authFailed): \(string)")
                 }
             } catch {
                 lastError = error
@@ -87,7 +91,7 @@ public enum Authenticator {
         }
 
         if let lastError { throw lastError }
-        try ensureFailed("authentication failed for an unknown reason")
+        try ensureFailed(Strings.authFailedUnknown)
     }
 
     public nonisolated static func rotatePasswordToken(for account: inout Account) async throws {
@@ -101,13 +105,12 @@ public enum Authenticator {
     }
 
     private nonisolated static func createInitialRequestEndpoint(
+        baseURL: URL,
         deviceIdentifier: String
     ) throws -> URL {
-        // https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate?guid=xxxxxx
-        var comps = URLComponents()
-        comps.scheme = "https"
-        comps.host = "buy.itunes.apple.com"
-        comps.path = "/WebObjects/MZFinance.woa/wa/authenticate"
+        guard var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: true) else {
+            try ensureFailed("\(Strings.invalidAuthEndpoint): \(baseURL)")
+        }
         comps.queryItems = [
             URLQueryItem(name: "guid", value: deviceIdentifier),
         ]
@@ -142,6 +145,7 @@ public enum Authenticator {
         for item in cookies.buildCookieHeader(endpoint) {
             headers.append(item)
         }
+        APLogger.logRequest(method: "POST", url: endpoint.absoluteString, headers: headers)
         return try .init(
             url: endpoint.absoluteString,
             method: .POST,
@@ -156,8 +160,15 @@ public enum Authenticator {
         password: String,
         code: String,
         cookies: inout [Cookie],
-        storeFront: inout String
+        storeFront: inout String,
+        pod: inout String?
     ) throws -> LoginResponse {
+        APLogger.logResponse(
+            status: response.status.code,
+            headers: response.headers.map { ($0.name, $0.value) },
+            bodySize: response.body?.readableBytes
+        )
+
         cookies.mergeCookies(response.cookies)
 
         let readStoreFrontValue = response
@@ -170,11 +181,16 @@ public enum Authenticator {
             storeFront = first
         }
 
+        if let podValue = response.headers.first(name: "pod"), !podValue.isEmpty {
+            pod = podValue
+            APLogger.info("auth: received pod value: \(podValue)")
+        }
+
         if response.status == .found {
             guard let location = response.headers.first(name: "location"),
                   let url = URL(string: location)
             else {
-                return .failure("failed to retrieve redirect location")
+                return .failure(Strings.failedToRetrieveRedirect)
             }
             return .redirect(url)
         }
@@ -190,7 +206,7 @@ public enum Authenticator {
             options: [],
             format: nil
         )
-        let dic = try (listItem as? [String: Any]).get("response is not a dictionary")
+        let dic = try (listItem as? [String: Any]).get(Strings.responseNotDictionary)
 
         if let failureType = dic["failureType"] as? String,
            failureType.isEmpty,
@@ -201,9 +217,13 @@ public enum Authenticator {
             return .codeRequired
         }
 
+        if let failureType = dic["failureType"] as? String, failureType == "5005" {
+            return .failure(Strings.invalid2FACode)
+        }
+
         let failureMessage = (dic["dialog"] as? [String: Any])?["explanation"] as? String ?? (dic["customerMessage"] as? String)
-        let accountInfoDic = try (dic["accountInfo"] as? [String: Any]).get(failureMessage ?? "missing accountInfo")
-        let addressInfoDic = try (accountInfoDic["address"] as? [String: Any]).get(failureMessage ?? "missing address")
+        let accountInfoDic = try (dic["accountInfo"] as? [String: Any]).get(failureMessage ?? Strings.missingAccountInfo)
+        let addressInfoDic = try (accountInfoDic["address"] as? [String: Any]).get(failureMessage ?? Strings.missingAddress)
 
         let account = try Account(
             email: email,
@@ -214,7 +234,8 @@ public enum Authenticator {
             lastName: addressInfoDic["lastName"] as? String,
             passwordToken: dic["passwordToken"] as? String,
             directoryServicesIdentifier: dic["dsPersonId"] as? String,
-            cookie: cookies
+            cookie: cookies,
+            pod: pod
         )
         return .success(account)
     }

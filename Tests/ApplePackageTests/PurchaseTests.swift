@@ -10,12 +10,19 @@ import AppKit
 import XCTest
 
 final class ApplePackagePurchaseTests: XCTestCase {
+    override class func setUp() {
+        TestConfiguration.bootstrap()
+    }
+
     @MainActor func testPurchase() async throws {
-        let testBundleID = "com.storytoys.duploworld.free.ios"
+        try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
+
+        let testBundleID = "developer.apple.wwdc-Release"
         do {
             try await withAccount(email: testAccountEmail) { account in
                 try await Authenticator.rotatePasswordToken(for: &account)
-                let app = try await Lookup.lookup(bundleID: testBundleID, countryCode: "US")
+                let countryCode = Configuration.countryCode(for: account.store) ?? "US"
+                let app = try await Lookup.lookup(bundleID: testBundleID, countryCode: countryCode)
                 try await Purchase.purchase(account: &account, app: app)
                 print("purchase test passed")
             }
@@ -25,9 +32,10 @@ final class ApplePackagePurchaseTests: XCTestCase {
     }
 
     @MainActor func testPurchasePaidApp() async throws {
+        try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
+
         do {
             try await withAccount(email: testAccountEmail) { account in
-                // Create a mock paid app
                 let paidApp = Software(
                     id: 123_456_789,
                     bundleID: "com.example.paid",

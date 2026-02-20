@@ -16,7 +16,7 @@ public enum Purchase {
         let deviceIdentifier = Configuration.deviceIdentifier
 
         if (app.price ?? 0) > 0 {
-            try ensureFailed("purchasing paid apps is not supported")
+            try ensureFailed(Strings.paidAppsNotSupported)
         }
 
         do {
@@ -36,6 +36,8 @@ public enum Purchase {
         guid: String,
         pricingParameters: String
     ) async throws {
+        APLogger.debug("purchase: using pricing parameters: \(pricingParameters)")
+
         let client = HTTPClient(
             eventLoopGroupProvider: .singleton,
             configuration: .init(
@@ -57,14 +59,20 @@ public enum Purchase {
         )
         let response = try await client.execute(request: request).get()
 
+        APLogger.logResponse(
+            status: response.status.code,
+            headers: response.headers.map { ($0.name, $0.value) },
+            bodySize: response.body?.readableBytes
+        )
+
         account.cookie.mergeCookies(response.cookies)
 
-        try ensure(response.status == .ok, "purchase request failed with status \(response.status.code)")
+        try ensure(response.status == .ok, Strings.requestFailed(status: response.status.code))
 
         guard var body = response.body,
               let data = body.readData(length: body.readableBytes)
         else {
-            try ensureFailed("response body is empty")
+            try ensureFailed(Strings.responseBodyEmpty)
         }
 
         let plist = try PropertyListSerialization.propertyList(
@@ -72,31 +80,43 @@ public enum Purchase {
             options: [],
             format: nil
         ) as? [String: Any]
-        guard let dict = plist else { try ensureFailed("invalid response") }
+        guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
+
+        // Check if Apple requires the user to accept terms in a browser
+        if let action = dict["action"] as? [String: Any],
+           let urlString = (action["url"] as? String) ?? (action["URL"] as? String),
+           urlString.hasSuffix("termsPage")
+        {
+            try ensureFailed(Strings.termsAcceptanceRequired(url: urlString))
+        }
 
         if let failureType = dict["failureType"] as? String {
+            let customerMessage = dict["customerMessage"] as? String
             switch failureType {
             case "2059":
-                try ensureFailed("item is temporarily unavailable")
-            case "2034":
-                try ensureFailed("password token is expired")
+                try ensureFailed(Strings.itemTemporarilyUnavailable)
+            case "2034", "2042":
+                try ensureFailed(Strings.passwordTokenExpired)
             default:
-                if let customerMessage = dict["customerMessage"] as? String {
+                if customerMessage == Strings.passwordChanged {
+                    try ensureFailed(Strings.passwordTokenExpired)
+                }
+                if let customerMessage {
                     if customerMessage == "Subscription Required" {
-                        try ensureFailed("subscription required")
+                        try ensureFailed(Strings.subscriptionRequired)
                     }
                     try ensureFailed(customerMessage)
                 }
-                try ensureFailed("purchase failed: \(failureType)")
+                try ensureFailed("\(Strings.purchaseFailed): \(failureType)")
             }
         }
 
         if let jingleDocType = dict["jingleDocType"] as? String,
            let status = dict["status"] as? Int
         {
-            try ensure(jingleDocType == "purchaseSuccess" && status == 0, "failed to purchase app")
+            try ensure(jingleDocType == "purchaseSuccess" && status == 0, Strings.failedToPurchase)
         } else {
-            try ensureFailed("invalid purchase response")
+            try ensureFailed(Strings.invalidPurchaseResponse)
         }
     }
 
@@ -132,12 +152,17 @@ public enum Purchase {
             ("X-Token", account.passwordToken),
         ]
 
-        for item in account.cookie.buildCookieHeader(URL(string: "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/buyProduct")!) {
+        let host = Configuration.purchaseAPIHost(pod: account.pod)
+        let urlString = "https://\(host)/WebObjects/MZFinance.woa/wa/buyProduct"
+
+        for item in account.cookie.buildCookieHeader(URL(string: urlString)!) {
             headers.append(item)
         }
 
+        APLogger.logRequest(method: "POST", url: urlString, headers: headers)
+
         return try .init(
-            url: "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/buyProduct",
+            url: urlString,
             method: .POST,
             headers: .init(headers),
             body: .data(data)

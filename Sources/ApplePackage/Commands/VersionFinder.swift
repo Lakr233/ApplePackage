@@ -14,7 +14,7 @@ public enum VersionFinder {
         bundleIdentifier: String
     ) async throws -> [String] {
         guard let countryCode = Configuration.countryCode(for: account.store) else {
-            try ensureFailed("unsupported store identifier: \(account.store)")
+            try ensureFailed(Strings.unsupportedStoreIdentifier(account.store))
         }
         let app = try await Lookup.lookup(bundleID: bundleIdentifier, countryCode: countryCode)
 
@@ -33,7 +33,7 @@ public enum VersionFinder {
 
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        var currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier)
+        var currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod)
         var redirectAttempt = 0
         var finalResponse: HTTPClient.Response?
         let maxRedirects = 3
@@ -48,13 +48,19 @@ public enum VersionFinder {
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
 
+            APLogger.logResponse(
+                status: response.status.code,
+                headers: response.headers.map { ($0.name, $0.value) },
+                bodySize: response.body?.readableBytes
+            )
+
             account.cookie.mergeCookies(response.cookies)
 
             if response.status == .found {
                 guard let location = response.headers.first(name: "location"),
                       let newURL = URL(string: location)
                 else {
-                    try ensureFailed("failed to retrieve redirect location")
+                    try ensureFailed(Strings.failedToRetrieveRedirect)
                 }
                 currentURL = newURL
                 redirectAttempt += 1
@@ -63,14 +69,14 @@ public enum VersionFinder {
             break
         }
 
-        guard let finalResponse else { try ensureFailed("no response received") }
+        guard let finalResponse else { try ensureFailed(Strings.noResponseReceived) }
 
-        try ensure(finalResponse.status == .ok, "invalid response status \(finalResponse.status.code)")
+        try ensure(finalResponse.status == .ok, Strings.requestFailed(status: finalResponse.status.code))
 
         guard var body = finalResponse.body,
               let data = body.readData(length: body.readableBytes)
         else {
-            try ensureFailed("response body is empty")
+            try ensureFailed(Strings.responseBodyEmpty)
         }
 
         let plist = try PropertyListSerialization.propertyList(
@@ -78,23 +84,27 @@ public enum VersionFinder {
             options: [],
             format: nil
         ) as? [String: Any]
-        guard let dict = plist else { try ensureFailed("invalid response") }
+        guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
             if let failureType = dict["failureType"] as? String {
+                let customerMessage = dict["customerMessage"] as? String
                 switch failureType {
-                case "2034":
-                    try ensureFailed("password token is expired")
+                case "2034", "2042":
+                    try ensureFailed(Strings.passwordTokenExpired)
                 case "9610":
                     throw ApplePackageError.licenseRequired
                 default:
-                    if let customerMessage = dict["customerMessage"] as? String {
+                    if customerMessage == Strings.passwordChanged {
+                        try ensureFailed(Strings.passwordTokenExpired)
+                    }
+                    if let customerMessage {
                         try ensureFailed(customerMessage)
                     }
-                    try ensureFailed("no items in response")
+                    try ensureFailed(Strings.noItemsInResponse)
                 }
             } else {
-                try ensureFailed("no items in response")
+                try ensureFailed(Strings.noItemsInResponse)
             }
         }
 
@@ -102,19 +112,19 @@ public enum VersionFinder {
         guard let metadata = item["metadata"] as? [String: Any],
               let identifiers = metadata["softwareVersionExternalIdentifiers"] as? [Any]
         else {
-            try ensureFailed("missing version identifiers")
+            try ensureFailed(Strings.missingVersionIdentifiers)
         }
 
         let result = identifiers.map { "\($0)" }
-        try ensure(!result.isEmpty, "no versions found")
+        try ensure(!result.isEmpty, Strings.noVersionsFound)
 
         return result
     }
 
-    private nonisolated static func createInitialRequestEndpoint(deviceIdentifier: String) throws -> URL {
+    private nonisolated static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"
-        comps.host = "p25-buy.itunes.apple.com"
+        comps.host = Configuration.storeAPIHost(pod: pod)
         comps.path = "/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
         comps.queryItems = [URLQueryItem(name: "guid", value: deviceIdentifier)]
         return try comps.url.get()
@@ -144,6 +154,8 @@ public enum VersionFinder {
         for item in account.cookie.buildCookieHeader(url) {
             headers.append(item)
         }
+
+        APLogger.logRequest(method: "POST", url: url.absoluteString, headers: headers)
 
         return try .init(
             url: url,

@@ -10,15 +10,21 @@ import AppKit
 import XCTest
 
 final class ApplePackageDownloadTests: XCTestCase {
-    @MainActor func testDownloadWithVersion() async throws {
-        let testBundleID = "as.wiki.qaq.kimis"
-        let testVersionID = "856026291"
+    override class func setUp() {
+        TestConfiguration.bootstrap()
+    }
+
+    @MainActor func testDownload() async throws {
+        try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
+
+        let testBundleID = "developer.apple.wwdc-Release"
         do {
             try await withAccount(email: testAccountEmail) { account in
                 try await Authenticator.rotatePasswordToken(for: &account)
-                let app = try await Lookup.lookup(bundleID: testBundleID, countryCode: "US")
-                let output = try await Download.download(account: &account, app: app, externalVersionID: testVersionID)
-                print("download with version test passed: \(output.downloadURL)")
+                let countryCode = Configuration.countryCode(for: account.store) ?? "US"
+                let app = try await Lookup.lookup(bundleID: testBundleID, countryCode: countryCode)
+                let output = try await Download.download(account: &account, app: app)
+                print("download test passed: \(output.downloadURL)")
                 print("    Bundle Short Version: \(output.bundleShortVersionString)")
                 print("    Bundle Version: \(output.bundleVersion)")
                 print("    SINFs count: \(output.sinfs.count)")
@@ -28,7 +34,7 @@ final class ApplePackageDownloadTests: XCTestCase {
                 XCTAssertGreaterThan(output.sinfs.count, 0, "Should have at least one SINF")
             }
         } catch {
-            XCTFail("download with version test failed: \(error)")
+            XCTFail("download test failed: \(error)")
         }
     }
 }

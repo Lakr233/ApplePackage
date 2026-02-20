@@ -9,41 +9,52 @@ import AppKit
 @testable import ApplePackage
 import XCTest
 
-private var account: String = ""
-private var password: String = ""
-private var code: String = ""
-private(set) var testAccountEmail: String = ""
-
-private func updateTestAccountInfo() {
-    account = try! String(contentsOfFile: "/tmp/applepackage/account.txt").trimmingCharacters(in: .whitespacesAndNewlines)
-    password = try! String(contentsOfFile: "/tmp/applepackage/password.txt").trimmingCharacters(in: .whitespacesAndNewlines)
-    code = try! String(contentsOfFile: "/tmp/applepackage/code.txt").trimmingCharacters(in: .whitespacesAndNewlines)
-    print("testing with account: \(account)")
-}
-
 final class ApplePackageAuthenticateTests: XCTestCase {
     override class func setUp() {
-        updateTestAccountInfo()
-        testAccountEmail = account
+        TestConfiguration.bootstrap()
+    }
+
+    @MainActor func testRotatePasswordToken() async throws {
+        try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
+        try await withAccount(email: testAccountEmail) { account in
+            try await Authenticator.rotatePasswordToken(for: &account)
+        }
+    }
+
+    @MainActor func testAuthenticate() async throws {
+        try XCTSkipUnless(TestConfiguration.hasCredentials, "No test credentials available")
+
+        let email = try XCTUnwrap(TestConfiguration.email)
+        let password = try XCTUnwrap(TestConfiguration.password)
+        let code = TestConfiguration.code ?? ""
+
+        let result = try await Authenticator.authenticate(email: email, password: password, code: code)
+        print(result)
+        saveLoginAccount(result, for: email)
     }
 
     @MainActor func testLogin() async throws {
-        // we dont do this test fequently to avoid triggering too many 2FA requests
-        // thus if file at /tmp/applepackage/login_account.txt exists, we skip this test
+        try XCTSkipIf(TestConfiguration.isCI, "Login requires interactive 2FA, skipping in CI")
+        try XCTSkipUnless(TestConfiguration.hasCredentials, "No test credentials available")
+
+        let email = try XCTUnwrap(TestConfiguration.email)
+        let password = try XCTUnwrap(TestConfiguration.password)
+        var code = TestConfiguration.code ?? ""
+
         let fileManager = FileManager.default
         let loginAccountPath = "/tmp/applepackage/login_account.txt"
         if fileManager.fileExists(atPath: loginAccountPath) {
-            print("login account file exists at \(loginAccountPath), skipping login test")
-            try await withAccount(email: testAccountEmail) { account in
+            print("login account file exists at \(loginAccountPath), rotating token instead")
+            try await withAccount(email: email) { account in
                 try await Authenticator.rotatePasswordToken(for: &account)
             }
             return
         }
 
         do {
-            let result = try await Authenticator.authenticate(email: account, password: password, code: code)
+            let result = try await Authenticator.authenticate(email: email, password: password, code: code)
             print(result)
-            saveLoginAccount(result, for: account)
+            saveLoginAccount(result, for: email)
         } catch {
             print("[?] first attempt failed: \(error)")
             let alert = NSAlert()
@@ -52,13 +63,17 @@ final class ApplePackageAuthenticateTests: XCTestCase {
             alert.alertStyle = .warning
             alert.addButton(withTitle: "OK")
             alert.runModal()
-            updateTestAccountInfo()
+
+            // Re-read code from file after user interaction
+            if let updatedCode = TestConfiguration.code {
+                code = updatedCode
+            }
             XCTAssert(!code.isEmpty)
             print("retrying with code: \(code)")
             do {
-                let result = try await Authenticator.authenticate(email: account, password: password, code: code)
+                let result = try await Authenticator.authenticate(email: email, password: password, code: code)
                 print(result)
-                saveLoginAccount(result, for: account)
+                saveLoginAccount(result, for: email)
             } catch {
                 XCTFail("second attempt failed: \(error)")
             }
