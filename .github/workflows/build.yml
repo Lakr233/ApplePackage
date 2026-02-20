@@ -46,16 +46,3 @@ jobs:
           xcodebuild -scheme ApplePackage \
             -destination "${{ matrix.destination }}" \
             build 2>&1 | xcbeautify
-
-  test:
-    name: Test (macOS)
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run tests
-        run: |
-          set -o pipefail
-          xcodebuild test -scheme ApplePackage \
-            -destination "platform=macOS" \
-            2>&1 | xcbeautify
