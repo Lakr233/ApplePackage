@@ -10,7 +10,13 @@ import AppKit
 import XCTest
 
 final class ApplePackageVersionLookupTests: XCTestCase {
+    override class func setUp() {
+        TestConfiguration.bootstrap()
+    }
+
     @MainActor func testGetVersionMetadata() async throws {
+        try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
+
         let testBundleID = "com.tencent.xin"
         let testVersionID = "850481143"
         do {
@@ -25,6 +31,8 @@ final class ApplePackageVersionLookupTests: XCTestCase {
     }
 
     @MainActor func testGetVersionMetadataInvalidVersion() async throws {
+        try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
+
         let testBundleID = "com.tencent.xin"
         do {
             try await withAccount(email: testAccountEmail) { account in

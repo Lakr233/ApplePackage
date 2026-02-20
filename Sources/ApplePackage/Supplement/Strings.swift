@@ -39,6 +39,10 @@ public enum Strings {
     static let invalidPurchaseResponse = "invalid purchase response"
     static let failedToPurchase = "failed to purchase app"
 
+    static func termsAcceptanceRequired(url: String) -> String {
+        "purchase requires accepting terms first, visit: \(url)"
+    }
+
     // MARK: - Version
 
     static let missingVersionIdentifiers = "missing version identifiers"

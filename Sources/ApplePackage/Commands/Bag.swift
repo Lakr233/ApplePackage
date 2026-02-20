@@ -69,8 +69,10 @@ public enum Bag {
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
         }
 
+        let plistData = extractPlistData(from: data)
+
         guard let plist = try? PropertyListSerialization.propertyList(
-            from: data,
+            from: plistData,
             options: [],
             format: nil
         ) as? [String: Any] else {
@@ -78,7 +80,10 @@ public enum Bag {
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
         }
 
-        guard let authURLString = plist["authenticateAccount"] as? String,
+        // authenticateAccount lives inside the nested urlBag dict
+        let urlBag = plist["urlBag"] as? [String: Any] ?? plist
+
+        guard let authURLString = urlBag["authenticateAccount"] as? String,
               let authURL = URL(string: authURLString)
         else {
             APLogger.debug("bag: no authenticateAccount in plist, using default auth endpoint")
@@ -87,5 +92,18 @@ public enum Bag {
 
         APLogger.info("bag: auth endpoint resolved to \(authURL)")
         return BagOutput(authEndpoint: authURL)
+    }
+
+    /// The bag XML response wraps the plist inside `<Document><Protocol><plist>...</plist>`.
+    /// Extract the `<plist>...</plist>` portion so PropertyListSerialization can parse it.
+    /// If the data is already a bare plist, return it as-is.
+    private static func extractPlistData(from data: Data) -> Data {
+        guard let xmlString = String(data: data, encoding: .utf8),
+              let startRange = xmlString.range(of: "<plist"),
+              let endRange = xmlString.range(of: "</plist>")
+        else {
+            return data
+        }
+        return Data(xmlString[startRange.lowerBound..<endRange.upperBound].utf8)
     }
 }

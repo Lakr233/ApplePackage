@@ -82,6 +82,13 @@ public enum Purchase {
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
+        // Check if Apple requires the user to accept terms in a browser
+        if let action = dict["action"] as? [String: Any],
+           let urlString = (action["url"] as? String) ?? (action["URL"] as? String),
+           urlString.hasSuffix("termsPage") {
+            try ensureFailed(Strings.termsAcceptanceRequired(url: urlString))
+        }
+
         if let failureType = dict["failureType"] as? String {
             let customerMessage = dict["customerMessage"] as? String
             switch failureType {

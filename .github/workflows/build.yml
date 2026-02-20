@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macOS
+            destination: "generic/platform=macOS"
+          - platform: Mac Catalyst
+            destination: "generic/platform=macOS,variant=Mac Catalyst"
+          - platform: iOS
+            destination: "generic/platform=iOS"
+          - platform: iOS Simulator
+            destination: "generic/platform=iOS Simulator"
+          - platform: tvOS
+            destination: "generic/platform=tvOS"
+          - platform: tvOS Simulator
+            destination: "generic/platform=tvOS Simulator"
+          - platform: watchOS
+            destination: "generic/platform=watchOS"
+          - platform: watchOS Simulator
+            destination: "generic/platform=watchOS Simulator"
+          - platform: visionOS
+            destination: "generic/platform=xrOS"
+          - platform: visionOS Simulator
+            destination: "generic/platform=xrOS Simulator"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -scheme ApplePackage \
+            -destination "${{ matrix.destination }}" \
+            build 2>&1 | xcbeautify
+
+  test:
+    name: Test (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          xcodebuild test -scheme ApplePackage \
+            -destination "platform=macOS" \
+            2>&1 | xcbeautify

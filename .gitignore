@@ -149,3 +149,6 @@ Package.resolved
 .swiftpm/
 
 References/
+
+# Test credentials
+test-env.json
