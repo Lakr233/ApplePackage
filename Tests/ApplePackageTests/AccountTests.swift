@@ -60,7 +60,7 @@ final class ApplePackageAccountTests: XCTestCase {
             "cookie": []
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try XCTUnwrap(json.data(using: .utf8))
         let decoded = try JSONDecoder().decode(Account.self, from: data)
         XCTAssertNil(decoded.pod)
         XCTAssertEqual(decoded.email, "test@example.com")

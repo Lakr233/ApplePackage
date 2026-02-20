@@ -3,8 +3,8 @@
 //  ApplePackage
 //
 
-import Foundation
 @testable import ApplePackage
+import Foundation
 
 /// Module-level var referenced by all auth-dependent tests.
 private(set) var testAccountEmail: String = ""
@@ -62,7 +62,8 @@ enum TestConfiguration {
         if let base64Data = env["TEST_ACCOUNT_DATA"], !base64Data.isEmpty {
             let accountPath = Configuration.accountPath(for: email)
             if !FileManager.default.fileExists(atPath: accountPath.path),
-               let data = Data(base64Encoded: base64Data) {
+               let data = Data(base64Encoded: base64Data)
+            {
                 try? FileManager.default.createDirectory(
                     at: accountPath.deletingLastPathComponent(),
                     withIntermediateDirectories: true

@@ -7,7 +7,15 @@
 
 import Foundation
 
-public struct Account: Codable, Hashable, Equatable, Sendable {
+public struct Account: Codable, Hashable, Equatable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
+    public var description: String {
+        "Account(email: \(email), store: \(store), pod: \(pod ?? "nil"))"
+    }
+
+    public var debugDescription: String {
+        "Account(email: \(email), appleId: \(appleId), store: \(store), name: \(firstName) \(lastName), dsid: \(directoryServicesIdentifier), pod: \(pod ?? "nil"))"
+    }
+
     public var email: String
     public var password: String
 

@@ -85,7 +85,8 @@ public enum Purchase {
         // Check if Apple requires the user to accept terms in a browser
         if let action = dict["action"] as? [String: Any],
            let urlString = (action["url"] as? String) ?? (action["URL"] as? String),
-           urlString.hasSuffix("termsPage") {
+           urlString.hasSuffix("termsPage")
+        {
             try ensureFailed(Strings.termsAcceptanceRequired(url: urlString))
         }
 

@@ -120,6 +120,12 @@ let results = try await Searcher.search(term: "example", countryCode: "US", limi
 - [Swift Collections](https://github.com/apple/swift-collections.git)
 - [Swift Argument Parser](https://github.com/apple/swift-argument-parser)
 
+## Acknowledgments
+
+- [ipatool](https://github.com/majd/ipatool) - Original inspiration and reference implementation
+- [at-wr](https://github.com/at-wr) - Testing and quality assurance
+- [Claude Code](https://claude.ai/code) by Anthropic - AI-assisted development
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

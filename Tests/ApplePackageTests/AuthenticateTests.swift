@@ -24,8 +24,8 @@ final class ApplePackageAuthenticateTests: XCTestCase {
     @MainActor func testAuthenticate() async throws {
         try XCTSkipUnless(TestConfiguration.hasCredentials, "No test credentials available")
 
-        let email = TestConfiguration.email!
-        let password = TestConfiguration.password!
+        let email = try XCTUnwrap(TestConfiguration.email)
+        let password = try XCTUnwrap(TestConfiguration.password)
         let code = TestConfiguration.code ?? ""
 
         let result = try await Authenticator.authenticate(email: email, password: password, code: code)
@@ -37,8 +37,8 @@ final class ApplePackageAuthenticateTests: XCTestCase {
         try XCTSkipIf(TestConfiguration.isCI, "Login requires interactive 2FA, skipping in CI")
         try XCTSkipUnless(TestConfiguration.hasCredentials, "No test credentials available")
 
-        let email = TestConfiguration.email!
-        let password = TestConfiguration.password!
+        let email = try XCTUnwrap(TestConfiguration.email)
+        let password = try XCTUnwrap(TestConfiguration.password)
         var code = TestConfiguration.code ?? ""
 
         let fileManager = FileManager.default

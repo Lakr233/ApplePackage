@@ -104,6 +104,6 @@ public enum Bag {
         else {
             return data
         }
-        return Data(xmlString[startRange.lowerBound..<endRange.upperBound].utf8)
+        return Data(xmlString[startRange.lowerBound ..< endRange.upperBound].utf8)
     }
 }
