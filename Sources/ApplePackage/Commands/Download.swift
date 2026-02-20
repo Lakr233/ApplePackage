@@ -104,7 +104,7 @@ public enum Download {
         let iTunesMetadata = try PropertyListSerialization.data(
             fromPropertyList: metadata,
             format: .binary,
-            options: 0
+            options: 0,
         )
 
         var sinfs: [Sinf] = []
@@ -126,7 +126,7 @@ public enum Download {
             sinfs: sinfs,
             bundleShortVersionString: version,
             bundleVersion: bundleVersion,
-            iTunesMetadata: iTunesMetadata
+            iTunesMetadata: iTunesMetadata,
         )
     }
 

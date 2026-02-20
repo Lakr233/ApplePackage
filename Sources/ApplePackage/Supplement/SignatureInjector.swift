@@ -12,7 +12,7 @@ public enum SignatureInjector {
     public static func inject(
         sinfs: [Sinf],
         iTunesMetadata: Data,
-        into packagePath: String
+        into packagePath: String,
     ) async throws {
         let archive = try Archive(url: URL(fileURLWithPath: packagePath), accessMode: .update)
 
@@ -87,7 +87,7 @@ public enum SignatureInjector {
 
     private static func injectMetadata(
         _ metadata: Data,
-        into archive: Archive
+        into archive: Archive,
     ) throws {
         let path = "iTunesMetadata.plist"
         guard archive[path] == nil else { return }
@@ -100,7 +100,7 @@ public enum SignatureInjector {
                 let start = metadata.startIndex.advanced(by: Int(position))
                 let end = start.advanced(by: size)
                 return metadata.subdata(in: start ..< end)
-            }
+            },
         )
     }
 

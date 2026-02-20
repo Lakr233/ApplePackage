@@ -39,7 +39,7 @@ final class ApplePackageDownloadTests: XCTestCase {
                 let metadata = try PropertyListSerialization.propertyList(
                     from: output.iTunesMetadata,
                     options: [],
-                    format: nil
+                    format: nil,
                 ) as? [String: Any]
                 XCTAssertNotNil(metadata, "iTunesMetadata should be a valid plist")
                 XCTAssertEqual(metadata?["apple-id"] as? String, account.email, "apple-id should match account email")
@@ -76,7 +76,7 @@ final class ApplePackageDownloadTests: XCTestCase {
             try await SignatureInjector.inject(
                 sinfs: output.sinfs,
                 iTunesMetadata: output.iTunesMetadata,
-                into: ipaURL.path
+                into: ipaURL.path,
             )
 
             // Verify IPA contents
@@ -85,7 +85,7 @@ final class ApplePackageDownloadTests: XCTestCase {
             var hasSinf = false
             var hasMetadata = false
             for entry in archive {
-                if entry.path.contains("SC_Info/") && entry.path.hasSuffix(".sinf") {
+                if entry.path.contains("SC_Info/"), entry.path.hasSuffix(".sinf") {
                     hasSinf = true
                 }
                 if entry.path == "iTunesMetadata.plist" {
@@ -95,7 +95,7 @@ final class ApplePackageDownloadTests: XCTestCase {
                     let plist = try PropertyListSerialization.propertyList(
                         from: metadataData,
                         options: [],
-                        format: nil
+                        format: nil,
                     ) as? [String: Any]
                     XCTAssertNotNil(plist, "iTunesMetadata.plist should be a valid plist")
                     XCTAssertEqual(plist?["apple-id"] as? String, account.email)
