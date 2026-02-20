@@ -12,7 +12,7 @@ import Foundation
 struct Download: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "download",
-        abstract: "Download an app"
+        abstract: "Download an app",
     )
 
     @OptionGroup var globalOptions: GlobalOptions
@@ -66,7 +66,11 @@ struct Download: AsyncParsableCommand {
             }
 
             print("writing signature...")
-            try await SignatureInjector.inject(sinfs: downloadOutput.sinfs, into: tempURL.path)
+            try await SignatureInjector.inject(
+                sinfs: downloadOutput.sinfs,
+                iTunesMetadata: downloadOutput.iTunesMetadata,
+                into: tempURL.path
+            )
 
             if FileManager.default.fileExists(atPath: outputURL.path) {
                 try FileManager.default.removeItem(at: outputURL)

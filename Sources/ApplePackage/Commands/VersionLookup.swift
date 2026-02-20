@@ -12,7 +12,7 @@ public enum VersionLookup {
     public nonisolated static func getVersionMetadata(
         account: inout Account,
         app: Software,
-        versionID: String
+        versionID: String,
     ) async throws -> VersionMetadata {
         let client = HTTPClient(
             eventLoopGroupProvider: .singleton,
@@ -21,9 +21,9 @@ public enum VersionLookup {
                 redirectConfiguration: .disallow,
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
+                    read: .seconds(Configuration.timeoutRead),
+                ),
+            ).then { $0.httpVersion = .http1Only },
         )
         defer { _ = client.shutdown() }
 
@@ -40,7 +40,7 @@ public enum VersionLookup {
                 app: app,
                 url: currentURL,
                 guid: deviceIdentifier,
-                versionID: versionID
+                versionID: versionID,
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -48,7 +48,7 @@ public enum VersionLookup {
             APLogger.logResponse(
                 status: response.status.code,
                 headers: response.headers.map { ($0.name, $0.value) },
-                bodySize: response.body?.readableBytes
+                bodySize: response.body?.readableBytes,
             )
 
             account.cookie.mergeCookies(response.cookies)
@@ -79,7 +79,7 @@ public enum VersionLookup {
         let plist = try PropertyListSerialization.propertyList(
             from: data,
             options: [],
-            format: nil
+            format: nil,
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
@@ -119,7 +119,7 @@ public enum VersionLookup {
         app: Software,
         url: URL,
         guid: String,
-        versionID: String
+        versionID: String,
     ) throws -> HTTPClient.Request {
         let payload: [String: Any] = [
             "creditDisplay": "",
@@ -147,7 +147,7 @@ public enum VersionLookup {
             url: url,
             method: .POST,
             headers: .init(headers),
-            body: .data(data)
+            body: .data(data),
         )
     }
 }

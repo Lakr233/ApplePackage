@@ -65,7 +65,7 @@ public struct Software: Codable, Equatable, Hashable, Identifiable {
         fileSizeBytes: String? = nil,
         releaseDate: String,
         formattedPrice: String? = nil,
-        primaryGenreName: String
+        primaryGenreName: String,
     ) {
         self.id = id
         self.bundleID = bundleID

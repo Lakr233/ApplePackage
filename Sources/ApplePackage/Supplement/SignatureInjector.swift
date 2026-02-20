@@ -11,6 +11,7 @@ import ZIPFoundation
 public enum SignatureInjector {
     public static func inject(
         sinfs: [Sinf],
+        iTunesMetadata: Data,
         into packagePath: String
     ) async throws {
         let archive = try Archive(url: URL(fileURLWithPath: packagePath), accessMode: .update)
@@ -24,6 +25,8 @@ public enum SignatureInjector {
         } else {
             try ensureFailed("could not read manifest or info plist")
         }
+
+        try injectMetadata(iTunesMetadata, into: archive)
     }
 
     private static func readBundleName(from archive: Archive) throws -> String {
@@ -65,7 +68,7 @@ public enum SignatureInjector {
         _ manifest: PackageManifest,
         into archive: Archive,
         sinfs: [Sinf],
-        bundleName: String
+        bundleName: String,
     ) throws {
         for (index, sinfPath) in manifest.sinfPaths.enumerated() {
             guard index < sinfs.count else { continue }
@@ -82,11 +85,30 @@ public enum SignatureInjector {
         }
     }
 
+    private static func injectMetadata(
+        _ metadata: Data,
+        into archive: Archive
+    ) throws {
+        let path = "iTunesMetadata.plist"
+        guard archive[path] == nil else { return }
+        try archive.addEntry(
+            with: path,
+            type: .file,
+            uncompressedSize: Int64(metadata.count),
+            compressionMethod: .deflate,
+            provider: { (position: Int64, size: Int) -> Data in
+                let start = metadata.startIndex.advanced(by: Int(position))
+                let end = start.advanced(by: size)
+                return metadata.subdata(in: start ..< end)
+            }
+        )
+    }
+
     private static func injectFromInfo(
         _ info: PackageInfo,
         into archive: Archive,
         sinfs: [Sinf],
-        bundleName: String
+        bundleName: String,
     ) throws {
         guard let sinf = sinfs.first else { return }
         let sinfPath = "Payload/\(bundleName).app/SC_Info/\(info.bundleExecutable).sinf"

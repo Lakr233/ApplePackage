@@ -17,6 +17,6 @@ func ensureFailed(_ error: String) throws -> Never {
         code: 1,
         userInfo: [
             NSLocalizedDescriptionKey: error,
-        ]
+        ],
     )
 }

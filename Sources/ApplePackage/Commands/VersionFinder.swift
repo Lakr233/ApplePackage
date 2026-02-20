@@ -11,7 +11,7 @@ import Foundation
 public enum VersionFinder {
     public nonisolated static func list(
         account: inout Account,
-        bundleIdentifier: String
+        bundleIdentifier: String,
     ) async throws -> [String] {
         guard let countryCode = Configuration.countryCode(for: account.store) else {
             try ensureFailed(Strings.unsupportedStoreIdentifier(account.store))
@@ -25,9 +25,9 @@ public enum VersionFinder {
                 redirectConfiguration: .disallow,
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
+                    read: .seconds(Configuration.timeoutRead),
+                ),
+            ).then { $0.httpVersion = .http1Only },
         )
         defer { _ = client.shutdown() }
 
@@ -43,7 +43,7 @@ public enum VersionFinder {
                 account: account,
                 app: app,
                 url: currentURL,
-                guid: deviceIdentifier
+                guid: deviceIdentifier,
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -51,7 +51,7 @@ public enum VersionFinder {
             APLogger.logResponse(
                 status: response.status.code,
                 headers: response.headers.map { ($0.name, $0.value) },
-                bodySize: response.body?.readableBytes
+                bodySize: response.body?.readableBytes,
             )
 
             account.cookie.mergeCookies(response.cookies)
@@ -82,7 +82,7 @@ public enum VersionFinder {
         let plist = try PropertyListSerialization.propertyList(
             from: data,
             options: [],
-            format: nil
+            format: nil,
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
@@ -134,7 +134,7 @@ public enum VersionFinder {
         account: Account,
         app: Software,
         url: URL,
-        guid: String
+        guid: String,
     ) throws -> HTTPClient.Request {
         let payload: [String: Any] = [
             "creditDisplay": "",
@@ -161,7 +161,7 @@ public enum VersionFinder {
             url: url,
             method: .POST,
             headers: .init(headers),
-            body: .data(data)
+            body: .data(data),
         )
     }
 }

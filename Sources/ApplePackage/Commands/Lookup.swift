@@ -16,7 +16,7 @@ public enum Lookup {
 
     public nonisolated static func lookup(
         bundleID: String,
-        countryCode: String
+        countryCode: String,
     ) async throws -> Software {
         let client = HTTPClient(
             eventLoopGroupProvider: .singleton,
@@ -25,9 +25,9 @@ public enum Lookup {
                 redirectConfiguration: .follow(max: 8, allowCycles: false),
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
+                    read: .seconds(Configuration.timeoutRead),
+                ),
+            ).then { $0.httpVersion = .http1Only },
         )
         defer { _ = client.shutdown() }
 
@@ -52,20 +52,20 @@ public enum Lookup {
 
     private nonisolated static func makeRequest(
         bundleID: String,
-        countryCode: String
+        countryCode: String,
     ) throws -> HTTPClient.Request {
         let url = try createLookupURL(bundleID: bundleID, countryCode: countryCode)
         return try .init(
             url: url.absoluteString,
             method: .GET,
             headers: .init([("User-Agent", Configuration.userAgent)]),
-            body: .none
+            body: .none,
         )
     }
 
     private nonisolated static func createLookupURL(
         bundleID: String,
-        countryCode: String
+        countryCode: String,
     ) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"

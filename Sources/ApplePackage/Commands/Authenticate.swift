@@ -21,7 +21,7 @@ public enum Authenticator {
         email: String,
         password: String,
         code: String = "",
-        cookies: [Cookie] = []
+        cookies: [Cookie] = [],
     ) async throws -> Account {
         let deviceIdentifier = Configuration.deviceIdentifier
 
@@ -34,9 +34,9 @@ public enum Authenticator {
                 redirectConfiguration: .disallow,
                 timeout: .init(
                     connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
+                    read: .seconds(Configuration.timeoutRead),
+                ),
+            ).then { $0.httpVersion = .http1Only },
         )
         defer { _ = client.shutdown() }
 
@@ -57,7 +57,7 @@ public enum Authenticator {
                     password: password,
                     code: code,
                     cookies: cookies,
-                    deviceIdentifier: deviceIdentifier
+                    deviceIdentifier: deviceIdentifier,
                 )
                 let response = try await client.execute(request: request).get()
                 let result = try parseResponse(
@@ -67,7 +67,7 @@ public enum Authenticator {
                     code: code,
                     cookies: &cookies,
                     storeFront: &storeFront,
-                    pod: &pod
+                    pod: &pod,
                 )
                 switch result {
                 case let .success(account):
@@ -99,14 +99,14 @@ public enum Authenticator {
             email: account.email,
             password: account.password,
             code: "",
-            cookies: account.cookie
+            cookies: account.cookie,
         )
         account = newAccount
     }
 
     private nonisolated static func createInitialRequestEndpoint(
         baseURL: URL,
-        deviceIdentifier: String
+        deviceIdentifier: String,
     ) throws -> URL {
         guard var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: true) else {
             try ensureFailed("\(Strings.invalidAuthEndpoint): \(baseURL)")
@@ -123,7 +123,7 @@ public enum Authenticator {
         password: String,
         code: String,
         cookies: [Cookie],
-        deviceIdentifier: String
+        deviceIdentifier: String,
     ) throws -> HTTPClient.Request {
         let parameters: [String: String] = [
             "appleId": email,
@@ -136,7 +136,7 @@ public enum Authenticator {
         let data = try PropertyListSerialization.data(
             fromPropertyList: parameters,
             format: .xml,
-            options: 0
+            options: 0,
         )
         var headers: [(String, String)] = [
             ("User-Agent", Configuration.userAgent),
@@ -150,7 +150,7 @@ public enum Authenticator {
             url: endpoint.absoluteString,
             method: .POST,
             headers: .init(headers),
-            body: .data(data)
+            body: .data(data),
         )
     }
 
@@ -161,12 +161,12 @@ public enum Authenticator {
         code: String,
         cookies: inout [Cookie],
         storeFront: inout String,
-        pod: inout String?
+        pod: inout String?,
     ) throws -> LoginResponse {
         APLogger.logResponse(
             status: response.status.code,
             headers: response.headers.map { ($0.name, $0.value) },
-            bodySize: response.body?.readableBytes
+            bodySize: response.body?.readableBytes,
         )
 
         cookies.mergeCookies(response.cookies)
@@ -204,7 +204,7 @@ public enum Authenticator {
         let listItem = try PropertyListSerialization.propertyList(
             from: data,
             options: [],
-            format: nil
+            format: nil,
         )
         let dic = try (listItem as? [String: Any]).get(Strings.responseNotDictionary)
 
@@ -235,7 +235,7 @@ public enum Authenticator {
             passwordToken: dic["passwordToken"] as? String,
             directoryServicesIdentifier: dic["dsPersonId"] as? String,
             cookie: cookies,
-            pod: pod
+            pod: pod,
         )
         return .success(account)
     }

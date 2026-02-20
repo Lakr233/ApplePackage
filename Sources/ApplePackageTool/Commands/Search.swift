@@ -12,7 +12,7 @@ import Foundation
 struct Search: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "search",
-        abstract: "Search for apps"
+        abstract: "Search for apps",
     )
 
     @Argument(help: "Search term")

@@ -66,7 +66,7 @@ enum TestConfiguration {
             {
                 try? FileManager.default.createDirectory(
                     at: accountPath.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
+                    withIntermediateDirectories: true,
                 )
                 try? data.write(to: accountPath)
                 print("[TestConfiguration] bootstrapped account.json from TEST_ACCOUNT_DATA")
