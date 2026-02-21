@@ -9,6 +9,16 @@
 
 ## How To Bump ipatool
 
+### Fastest Path (GitHub Actions)
+
+Run the `Bump ipatool` workflow and input only one field:
+
+- `ipatool_tag` (example: `v2.3.0`)
+
+The workflow updates the pin, rebuilds metadata, runs regression tests, and opens a PR automatically.
+
+### Local Script
+
 1. Ensure `go`, `swift`, `xcodebuild`, `xcrun`, `lipo`, and `python3` are installed.
 2. Run:
 
@@ -53,5 +63,6 @@ Do not commit generated binary artifacts under `Binaries/`.
 ## GitHub Actions
 
 - `build.yml`: builds local Go XCFramework and runs tests/builds for macOS, Mac Catalyst, iOS, and iOS Simulator.
+- `bump-ipatool.yml`: manual tag-based bump workflow (single required input: `ipatool_tag`) that opens an automated PR.
 - `publish-go-bindings.yml`: rebuilds and publishes the binary zip asset to the release tag declared in metadata.
 - `sync-ipatool.yml`: checks upstream `majd/ipatool` release tags daily and opens an automated bump PR when a new version is available.
