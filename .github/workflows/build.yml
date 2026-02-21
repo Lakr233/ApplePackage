@@ -4,15 +4,38 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  tests:
+    name: Swift Tests
+    runs-on: macos-15
+    env:
+      APPLEPACKAGE_USE_LOCAL_BINDINGS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: GoIPAToolWrapper/go.mod
+
+      - name: Build Go XCFramework
+        run: Scripts/build_xcframework.sh
+
+      - name: Run tests
+        run: |
+          swift test --filter 'ApplePackageBackendSelectionTests|ApplePackageSearchParsingTests'
+
   build:
     name: Build (${{ matrix.platform }})
+    needs: tests
     runs-on: macos-15
+    env:
+      APPLEPACKAGE_USE_LOCAL_BINDINGS: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -36,9 +59,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: GoIPAToolWrapper/go.mod
+
+      - name: Build Go XCFramework
+        run: Scripts/build_xcframework.sh
+
       - name: Build
         run: |
-          set -o pipefail
           xcodebuild -scheme ApplePackage \
             -destination "${{ matrix.destination }}" \
-            build 2>&1 | xcbeautify
+            build

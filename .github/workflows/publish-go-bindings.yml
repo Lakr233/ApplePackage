@@ -1,0 +1,99 @@
+name: Publish Go Bindings
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - GoIPAToolWrapper/go.mod
+      - GoIPAToolWrapper/go.sum
+      - GoIPAToolWrapper/bindings-metadata.json
+      - GoIPAToolWrapper/bridge.go
+      - GoIPAToolWrapper/third_party/keyring/**
+      - Scripts/build_xcframework.sh
+      - Scripts/package_xcframework.py
+      - Scripts/update_ipatool.sh
+      - Package.swift
+  workflow_dispatch:
+
+concurrency:
+  group: publish-go-bindings-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: GoIPAToolWrapper/go.mod
+
+      - name: Build Go XCFramework
+        run: Scripts/build_xcframework.sh
+
+      - name: Package XCFramework
+        run: Scripts/package_xcframework.py Binaries/GoIPAToolBindings.xcframework Binaries/GoIPAToolBindings.xcframework.zip
+
+      - name: Read metadata
+        id: metadata
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          with open('GoIPAToolWrapper/bindings-metadata.json', 'r', encoding='utf-8') as handle:
+              metadata = json.load(handle)
+
+          outputs = {
+              'release_tag': metadata['releaseTag'],
+              'asset_name': metadata['assetName'],
+              'expected_checksum': metadata['checksum'],
+              'ipatool_version': metadata['ipatoolVersion'],
+          }
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
+              for key, value in outputs.items():
+                  handle.write(f"{key}={value}\n")
+          PY
+
+      - name: Verify checksum
+        run: |
+          CHECKSUM=$(swift package compute-checksum Binaries/GoIPAToolBindings.xcframework.zip)
+          if [ "$CHECKSUM" != "${{ steps.metadata.outputs.expected_checksum }}" ]; then
+            echo "[!] Metadata checksum does not match generated zip"
+            echo "    expected: ${{ steps.metadata.outputs.expected_checksum }}"
+            echo "    actual:   $CHECKSUM"
+            exit 1
+          fi
+
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+          IPATOOL_VERSION: ${{ steps.metadata.outputs.ipatool_version }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "[*] Release $RELEASE_TAG already exists"
+          else
+            gh release create "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --notes "Automated GoIPAToolBindings release for ipatool $IPATOOL_VERSION" \
+              --latest=false
+          fi
+
+      - name: Upload asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+          ASSET_NAME: ${{ steps.metadata.outputs.asset_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fx "$ASSET_NAME" >/dev/null 2>&1; then
+            echo "[*] Asset $ASSET_NAME already exists on release $RELEASE_TAG"
+            exit 0
+          fi
+
+          gh release upload "$RELEASE_TAG" "Binaries/GoIPAToolBindings.xcframework.zip#$ASSET_NAME"

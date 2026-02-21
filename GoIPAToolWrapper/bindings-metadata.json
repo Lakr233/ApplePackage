@@ -1,0 +1,8 @@
+{
+  "assetName": "GoIPAToolBindings.xcframework.zip",
+  "checksum": "fea5e2f9e213ee837b97aec7cade5193fbf9c1264de1a499a813d9cb681580c2",
+  "ipatoolModule": "github.com/majd/ipatool/v2",
+  "ipatoolVersion": "v2.3.0",
+  "releaseTag": "go-ipatool-v2.3.0-fea5e2f9e213",
+  "repository": "Lakr233/ApplePackage"
+}
