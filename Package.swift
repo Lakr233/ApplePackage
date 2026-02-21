@@ -87,12 +87,12 @@ private func resolveRepositorySlug(fallback: String?) -> String {
         return slug
     }
 
-    if let fallback, isValidRepositorySlug(fallback) {
-        return fallback
-    }
-
     if let slug = loadRepositorySlugFromGitRemotes(["origin"]) {
         return slug
+    }
+
+    if let fallback, isValidRepositorySlug(fallback) {
+        return fallback
     }
 
     fatalError(

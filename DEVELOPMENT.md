@@ -44,7 +44,7 @@ Commit these files after a bump:
 - `GoIPAToolWrapper/go.sum`
 - `GoIPAToolWrapper/bindings-metadata.json`
 
-`Package.swift` resolves the release repository from `APPLEPACKAGE_GITHUB_REPOSITORY`, then git `upstream`, then metadata fallback, then git `origin`, so forks can consume their own release assets without hardcoded owner names.
+`Package.swift` resolves the release repository from `APPLEPACKAGE_GITHUB_REPOSITORY`, then git `upstream`, then git `origin`, then metadata fallback, so forks can consume their own release assets without hardcoded owner names.
 For CI/debug overrides, set `APPLEPACKAGE_GITHUB_REPOSITORY=<owner>/<repo>`.
 `Scripts/update_ipatool.sh` also honors `APPLEPACKAGE_GITHUB_REPOSITORY` when writing metadata.
 
