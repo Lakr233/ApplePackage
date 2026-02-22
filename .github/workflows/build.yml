@@ -48,14 +48,6 @@ jobs:
             destination: "generic/platform=iOS"
           - platform: iOS Simulator
             destination: "generic/platform=iOS Simulator"
-          - platform: tvOS
-            destination: "generic/platform=tvOS"
-          - platform: tvOS Simulator
-            destination: "generic/platform=tvOS Simulator"
-          - platform: visionOS
-            destination: "generic/platform=xrOS"
-          - platform: visionOS Simulator
-            destination: "generic/platform=xrOS Simulator"
     steps:
       - uses: actions/checkout@v4
 
