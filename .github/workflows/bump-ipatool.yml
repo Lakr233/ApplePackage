@@ -1,0 +1,87 @@
+name: Bump ipatool
+
+on:
+  workflow_dispatch:
+    inputs:
+      ipatool_tag:
+        description: ipatool tag to bump to (e.g. v2.3.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump-ipatool-${{ inputs.ipatool_tag }}
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: macos-15
+    env:
+      APPLEPACKAGE_USE_LOCAL_BINDINGS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: GoIPAToolWrapper/go.mod
+
+      - name: Validate input
+        env:
+          TAG: ${{ inputs.ipatool_tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            echo "[!] ipatool_tag is required"
+            exit 1
+          fi
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "[!] ipatool_tag must look like vX.Y.Z (got: $TAG)"
+            exit 1
+          fi
+
+      - name: Resolve versions
+        id: versions
+        env:
+          TARGET_TAG: ${{ inputs.ipatool_tag }}
+        run: |
+          CURRENT_TAG="$(cd GoIPAToolWrapper && go list -m -f '{{.Version}}' github.com/majd/ipatool/v2)"
+          SAFE_TAG="$(echo "$TARGET_TAG" | tr -c '[:alnum:]._-' '-')"
+
+          echo "target=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+          echo "current=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
+          echo "safe_target=$SAFE_TAG" >> "$GITHUB_OUTPUT"
+
+          if [ "$TARGET_TAG" = "$CURRENT_TAG" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "[*] ipatool is already pinned at $CURRENT_TAG"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "[*] ipatool bump needed: $CURRENT_TAG -> $TARGET_TAG"
+          fi
+
+      - name: Update ipatool pin and metadata
+        if: steps.versions.outputs.changed == 'true'
+        run: Scripts/update_ipatool.sh "${{ steps.versions.outputs.target }}"
+
+      - name: Run backend regression tests
+        if: steps.versions.outputs.changed == 'true'
+        run: swift test --filter 'ApplePackageBackendSelectionTests|ApplePackageSearchParsingTests'
+
+      - name: Create pull request
+        if: steps.versions.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore: bump ipatool to ${{ steps.versions.outputs.target }}"
+          title: "chore: bump ipatool to ${{ steps.versions.outputs.target }}"
+          body: |
+            Automated ipatool bump from manual workflow input.
+
+            - Previous pin: `${{ steps.versions.outputs.current }}`
+            - New pin: `${{ steps.versions.outputs.target }}`
+            - Rebuilt GoIPATool XCFramework and refreshed binary metadata.
+          branch: "codex/manual-ipatool-${{ steps.versions.outputs.safe_target }}-${{ github.run_id }}"
+          delete-branch: true
+          labels: dependencies

@@ -152,3 +152,7 @@ References/
 
 # Test credentials
 test-env.json
+
+# Generated Go backend artifacts
+Binaries/GoIPAToolBindings.xcframework/
+Binaries/GoIPAToolBindings.xcframework.zip

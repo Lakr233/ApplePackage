@@ -11,12 +11,29 @@ For a version with a graphical user interface (GUI) and an on-device installer, 
 - **Download**: Download apps using your Apple account
 - **Versions**: Retrieve version information for apps
 
+## Supported Platforms
+
+- iOS 15+
+- tvOS 17+
+- visionOS 1+
+- macOS 12+
+- Mac Catalyst 14+
+
 ## Installation
 
 ### Prerequisites
 
 - Swift 5.9 or later
 - macOS 12+
+
+### Swift Package Manager
+
+`ApplePackage` publishes `GoIPAToolBindings.xcframework.zip` as a GitHub Release asset.
+
+- Downstream apps that depend on this package through SPM download the prebuilt binary automatically.
+- App integrators do not need to install Go or build ipatool locally.
+- Release repository selection is configurable with `APPLEPACKAGE_GITHUB_REPOSITORY` and git remotes.
+- CI and local contributors can force local binary linking by running `Scripts/build_xcframework.sh` and setting `APPLEPACKAGE_USE_LOCAL_BINDINGS=1`.
 
 ### Using Swift Run
 
@@ -129,6 +146,8 @@ let results = try await Searcher.search(term: "example", countryCode: "US", limi
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+For backend maintenance details (including how to bump the pinned Go `ipatool` version and rebuild the XCFramework), see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## License
 
