@@ -87,14 +87,47 @@ else
     echo "[*] Skipping optional iOS simulator x86_64 slice"
 fi
 
+build_slice "tvos-device-arm64" "appletvos" "ios" "arm64" "arm64" "-target arm64-apple-tvos17.0"
+build_slice "tvos-sim-arm64" "appletvsimulator" "ios" "arm64" "arm64" "-target arm64-apple-tvos17.0-simulator"
+
+if build_slice "tvos-sim-amd64" "appletvsimulator" "ios" "amd64" "x86_64" "-target x86_64-apple-tvos17.0-simulator"; then
+    echo "[*] Built optional tvOS simulator x86_64 slice"
+else
+    echo "[*] Skipping optional tvOS simulator x86_64 slice"
+fi
+
+build_slice "xros-device-arm64" "xros" "ios" "arm64" "arm64" "-target arm64-apple-xros1.0"
+build_slice "xros-sim-arm64" "xrsimulator" "ios" "arm64" "arm64" "-target arm64-apple-xros1.0-simulator"
+
+if build_slice "xros-sim-amd64" "xrsimulator" "ios" "amd64" "x86_64" "-target x86_64-apple-xros1.0-simulator"; then
+    echo "[*] Built optional visionOS simulator x86_64 slice"
+else
+    echo "[*] Skipping optional visionOS simulator x86_64 slice"
+fi
+
 build_slice "macos-arm64" "macosx" "darwin" "arm64" "arm64" "-mmacosx-version-min=12.0"
 build_slice "macos-amd64" "macosx" "darwin" "amd64" "x86_64" "-mmacosx-version-min=12.0"
 build_slice "catalyst-arm64" "macosx" "ios" "arm64" "arm64" "-target arm64-apple-ios14.0-macabi"
 build_slice "catalyst-amd64" "macosx" "ios" "amd64" "x86_64" "-target x86_64-apple-ios14.0-macabi"
 
-mkdir -p "$BUILD_DIR/ios-simulator/include" "$BUILD_DIR/macos/include" "$BUILD_DIR/catalyst/include"
+mkdir -p \
+    "$BUILD_DIR/ios-simulator/include" \
+    "$BUILD_DIR/tvos/include" \
+    "$BUILD_DIR/tvos-simulator/include" \
+    "$BUILD_DIR/xros/include" \
+    "$BUILD_DIR/xros-simulator/include" \
+    "$BUILD_DIR/macos/include" \
+    "$BUILD_DIR/catalyst/include"
 cp "$BUILD_DIR/ios-sim-arm64/include/goipatool.h" "$BUILD_DIR/ios-simulator/include/goipatool.h"
 cp "$BUILD_DIR/ios-sim-arm64/include/module.modulemap" "$BUILD_DIR/ios-simulator/include/module.modulemap"
+cp "$BUILD_DIR/tvos-device-arm64/include/goipatool.h" "$BUILD_DIR/tvos/include/goipatool.h"
+cp "$BUILD_DIR/tvos-device-arm64/include/module.modulemap" "$BUILD_DIR/tvos/include/module.modulemap"
+cp "$BUILD_DIR/tvos-sim-arm64/include/goipatool.h" "$BUILD_DIR/tvos-simulator/include/goipatool.h"
+cp "$BUILD_DIR/tvos-sim-arm64/include/module.modulemap" "$BUILD_DIR/tvos-simulator/include/module.modulemap"
+cp "$BUILD_DIR/xros-device-arm64/include/goipatool.h" "$BUILD_DIR/xros/include/goipatool.h"
+cp "$BUILD_DIR/xros-device-arm64/include/module.modulemap" "$BUILD_DIR/xros/include/module.modulemap"
+cp "$BUILD_DIR/xros-sim-arm64/include/goipatool.h" "$BUILD_DIR/xros-simulator/include/goipatool.h"
+cp "$BUILD_DIR/xros-sim-arm64/include/module.modulemap" "$BUILD_DIR/xros-simulator/include/module.modulemap"
 cp "$BUILD_DIR/macos-arm64/include/goipatool.h" "$BUILD_DIR/macos/include/goipatool.h"
 cp "$BUILD_DIR/macos-arm64/include/module.modulemap" "$BUILD_DIR/macos/include/module.modulemap"
 cp "$BUILD_DIR/catalyst-arm64/include/goipatool.h" "$BUILD_DIR/catalyst/include/goipatool.h"
@@ -105,6 +138,21 @@ if [ -f "$BUILD_DIR/ios-sim-amd64/libgoipatool.a" ]; then
     SIM_LIBS+=("$BUILD_DIR/ios-sim-amd64/libgoipatool.a")
 fi
 lipo -create "${SIM_LIBS[@]}" -output "$BUILD_DIR/ios-simulator/libgoipatool.a"
+
+TVOS_SIM_LIBS=("$BUILD_DIR/tvos-sim-arm64/libgoipatool.a")
+if [ -f "$BUILD_DIR/tvos-sim-amd64/libgoipatool.a" ]; then
+    TVOS_SIM_LIBS+=("$BUILD_DIR/tvos-sim-amd64/libgoipatool.a")
+fi
+lipo -create "${TVOS_SIM_LIBS[@]}" -output "$BUILD_DIR/tvos-simulator/libgoipatool.a"
+
+XROS_SIM_LIBS=("$BUILD_DIR/xros-sim-arm64/libgoipatool.a")
+if [ -f "$BUILD_DIR/xros-sim-amd64/libgoipatool.a" ]; then
+    XROS_SIM_LIBS+=("$BUILD_DIR/xros-sim-amd64/libgoipatool.a")
+fi
+lipo -create "${XROS_SIM_LIBS[@]}" -output "$BUILD_DIR/xros-simulator/libgoipatool.a"
+
+cp "$BUILD_DIR/tvos-device-arm64/libgoipatool.a" "$BUILD_DIR/tvos/libgoipatool.a"
+cp "$BUILD_DIR/xros-device-arm64/libgoipatool.a" "$BUILD_DIR/xros/libgoipatool.a"
 
 lipo -create \
     "$BUILD_DIR/macos-arm64/libgoipatool.a" \
@@ -119,6 +167,10 @@ lipo -create \
 xcodebuild -create-xcframework \
     -library "$BUILD_DIR/ios-device-arm64/libgoipatool.a" -headers "$BUILD_DIR/ios-device-arm64/include" \
     -library "$BUILD_DIR/ios-simulator/libgoipatool.a" -headers "$BUILD_DIR/ios-simulator/include" \
+    -library "$BUILD_DIR/tvos/libgoipatool.a" -headers "$BUILD_DIR/tvos/include" \
+    -library "$BUILD_DIR/tvos-simulator/libgoipatool.a" -headers "$BUILD_DIR/tvos-simulator/include" \
+    -library "$BUILD_DIR/xros/libgoipatool.a" -headers "$BUILD_DIR/xros/include" \
+    -library "$BUILD_DIR/xros-simulator/libgoipatool.a" -headers "$BUILD_DIR/xros-simulator/include" \
     -library "$BUILD_DIR/macos/libgoipatool.a" -headers "$BUILD_DIR/macos/include" \
     -library "$BUILD_DIR/catalyst/libgoipatool.a" -headers "$BUILD_DIR/catalyst/include" \
     -output "$OUTPUT_XCFRAMEWORK"

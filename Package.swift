@@ -229,6 +229,8 @@ let package = Package(
     name: "ApplePackage",
     platforms: [
         .iOS(.v15),
+        .tvOS(.v17),
+        .visionOS(.v1),
         .macCatalyst(.v14),
         .macOS(.v12),
     ],

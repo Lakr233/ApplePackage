@@ -11,6 +11,14 @@ For a version with a graphical user interface (GUI) and an on-device installer, 
 - **Download**: Download apps using your Apple account
 - **Versions**: Retrieve version information for apps
 
+## Supported Platforms
+
+- iOS 15+
+- tvOS 17+
+- visionOS 1+
+- macOS 12+
+- Mac Catalyst 14+
+
 ## Installation
 
 ### Prerequisites
