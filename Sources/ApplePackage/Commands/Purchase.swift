@@ -22,7 +22,9 @@ public enum Purchase {
         do {
             try await purchaseWithParams(account: &account, app: app, guid: deviceIdentifier, pricingParameters: "STDQ")
         } catch let error as NSError {
-            if error.localizedDescription.contains("item is temporarily unavailable") {
+            if error.localizedDescription.contains("failureType: 2059") ||
+                error.localizedDescription.contains(Strings.itemTemporarilyUnavailable)
+            {
                 try await purchaseWithParams(account: &account, app: app, guid: deviceIdentifier, pricingParameters: "GAME")
             } else {
                 throw error
@@ -93,10 +95,8 @@ public enum Purchase {
         if let failureType = dict["failureType"] as? String {
             let customerMessage = dict["customerMessage"] as? String
             switch failureType {
-            case "2059":
-                try ensureFailed(Strings.itemTemporarilyUnavailable)
             case "2034", "2042":
-                try ensureFailed(Strings.passwordTokenExpired)
+                try ensureFailed(Strings.purchaseFailureMessage(failureType: failureType, customerMessage: customerMessage))
             default:
                 if customerMessage == Strings.passwordChanged {
                     try ensureFailed(Strings.passwordTokenExpired)
@@ -105,9 +105,8 @@ public enum Purchase {
                     if customerMessage == "Subscription Required" {
                         try ensureFailed(Strings.subscriptionRequired)
                     }
-                    try ensureFailed(customerMessage)
                 }
-                try ensureFailed("\(Strings.purchaseFailed): \(failureType)")
+                try ensureFailed(Strings.purchaseFailureMessage(failureType: failureType, customerMessage: customerMessage))
             }
         }
 

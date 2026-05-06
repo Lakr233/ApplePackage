@@ -47,7 +47,11 @@ struct Download: AsyncParsableCommand {
             print("downloading \(app.name) (\(app.bundleID)) version \(downloadOutput.bundleShortVersionString)")
             print("content length: \(formatBytes(contentLength))")
 
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(outputURL.lastPathComponent)
+            let tempURL = temporaryDownloadURL(
+                outputURL: outputURL,
+                bundleID: app.bundleID,
+                bundleVersion: downloadOutput.bundleVersion
+            )
 
             var startByte: Int64 = 0
             if FileManager.default.fileExists(atPath: tempURL.path) {
@@ -73,10 +77,7 @@ struct Download: AsyncParsableCommand {
                 into: tempURL.path
             )
 
-            if FileManager.default.fileExists(atPath: outputURL.path) {
-                try FileManager.default.removeItem(at: outputURL)
-            }
-            try FileManager.default.moveItem(at: tempURL, to: outputURL)
+            try replaceOutput(at: outputURL, with: tempURL)
 
             print("saved to \(outputURL.path)")
         }
@@ -257,7 +258,52 @@ private extension Download {
             )
         }
 
+        try verifyWritableDirectory(parentURL)
+
         return outputURL
+    }
+
+    private func verifyWritableDirectory(_ directoryURL: URL) throws {
+        let probeURL = directoryURL.appendingPathComponent(".applepackage-write-test-\(UUID().uuidString)")
+        do {
+            try Data().write(to: probeURL, options: .withoutOverwriting)
+            try FileManager.default.removeItem(at: probeURL)
+        } catch {
+            try? FileManager.default.removeItem(at: probeURL)
+            throw NSError(
+                domain: "InvalidOutputPath",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Output directory is not writable: \(directoryURL.path)"]
+            )
+        }
+    }
+
+    private func temporaryDownloadURL(outputURL: URL, bundleID: String, bundleVersion: String) -> URL {
+        let parentURL = outputURL.deletingLastPathComponent()
+        let identity = [bundleID, bundleVersion]
+            .map(sanitizedPathComponent)
+            .joined(separator: ".")
+        return parentURL.appendingPathComponent(".\(outputURL.lastPathComponent).\(identity).download")
+    }
+
+    private func sanitizedPathComponent(_ value: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ".-_"))
+        let scalars = value.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
+        let result = String(scalars)
+        return result.isEmpty ? "unknown" : result
+    }
+
+    private func replaceOutput(at outputURL: URL, with tempURL: URL) throws {
+        if FileManager.default.fileExists(atPath: outputURL.path) {
+            _ = try FileManager.default.replaceItemAt(
+                outputURL,
+                withItemAt: tempURL,
+                backupItemName: nil,
+                options: []
+            )
+        } else {
+            try FileManager.default.moveItem(at: tempURL, to: outputURL)
+        }
     }
 
     private func updateProgress(downloaded: Int64, total: Int64) {

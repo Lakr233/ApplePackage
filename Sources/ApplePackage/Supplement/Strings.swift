@@ -38,9 +38,38 @@ public enum Strings {
     static let purchaseFailed = "purchase failed"
     static let invalidPurchaseResponse = "invalid purchase response"
     static let failedToPurchase = "failed to purchase app"
+    static let alreadyPurchased = "app is already purchased"
+    static let purchasedAppUnavailable = "app is already purchased, unavailable, or delisted"
+    static let itemUnavailableOrNotPurchased = "app is unavailable, delisted, unavailable in this storefront, or not purchased"
+    static let invalidStore = "invalid store or app unavailable in this storefront"
+    static let paidAppPurchaseFailed = "paid apps cannot be purchased directly"
+    static let noLicenseFound = "license not found or app id is invalid"
 
     static func termsAcceptanceRequired(url: String) -> String {
         "purchase requires accepting terms first, visit: \(url)"
+    }
+
+    static func purchaseFailureMessage(failureType: String, customerMessage: String?) -> String {
+        let message = switch failureType {
+        case "5002":
+            alreadyPurchased
+        case "2040":
+            purchasedAppUnavailable
+        case "2059":
+            itemUnavailableOrNotPurchased
+        case "1010":
+            invalidStore
+        case "2034", "2042":
+            passwordTokenExpired
+        case "2019":
+            paidAppPurchaseFailed
+        case "9610":
+            noLicenseFound
+        default:
+            customerMessage.flatMap { $0.isEmpty ? nil : $0 } ?? purchaseFailed
+        }
+
+        return "\(message) (failureType: \(failureType))"
     }
 
     // MARK: - Version
