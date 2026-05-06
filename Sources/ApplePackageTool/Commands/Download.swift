@@ -31,6 +31,8 @@ struct Download: AsyncParsableCommand {
 
     func run() async throws {
         globalOptions.apply()
+        let outputURL = try validateOutputURL(output)
+
         try await Configuration.withAccount(email: email) { account in
             try await Authenticator.rotatePasswordToken(for: &account)
             guard let country = Configuration.countryCode(for: account.store) else {
@@ -40,7 +42,6 @@ struct Download: AsyncParsableCommand {
             let downloadOutput = try await ApplePackage.Download.download(account: &account, app: app, externalVersionID: versionID ?? "")
 
             let url = URL(string: downloadOutput.downloadURL)!
-            let outputURL = URL(fileURLWithPath: output)
 
             let (contentLength, supportsRanges) = try await getContentInfo(from: url)
             print("downloading \(app.name) (\(app.bundleID)) version \(downloadOutput.bundleShortVersionString)")
@@ -223,6 +224,42 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
 }
 
 private extension Download {
+    private func validateOutputURL(_ output: String) throws -> URL {
+        let outputURL = URL(fileURLWithPath: output).standardizedFileURL
+
+        guard outputURL.pathExtension.caseInsensitiveCompare("ipa") == .orderedSame else {
+            throw NSError(
+                domain: "InvalidOutputPath",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Output path must end with .ipa"]
+            )
+        }
+
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: outputURL.path, isDirectory: &isDirectory),
+           isDirectory.boolValue
+        {
+            throw NSError(
+                domain: "InvalidOutputPath",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Output path must point to an ipa file"]
+            )
+        }
+
+        let parentURL = outputURL.deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: parentURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            throw NSError(
+                domain: "InvalidOutputPath",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Output directory does not exist: \(parentURL.path)"]
+            )
+        }
+
+        return outputURL
+    }
+
     private func updateProgress(downloaded: Int64, total: Int64) {
         let percentage = min(100.0, Double(downloaded) / Double(total) * 100.0)
         let progressBarWidth = 30
