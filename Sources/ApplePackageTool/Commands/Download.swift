@@ -31,6 +31,8 @@ struct Download: AsyncParsableCommand {
 
     func run() async throws {
         globalOptions.apply()
+        let outputURL = try validateOutputURL(output)
+
         try await Configuration.withAccount(email: email) { account in
             try await Authenticator.rotatePasswordToken(for: &account)
             guard let country = Configuration.countryCode(for: account.store) else {
@@ -40,7 +42,6 @@ struct Download: AsyncParsableCommand {
             let downloadOutput = try await ApplePackage.Download.download(account: &account, app: app, externalVersionID: versionID ?? "")
 
             let url = URL(string: downloadOutput.downloadURL)!
-            let outputURL = URL(fileURLWithPath: output)
 
             let (contentLength, supportsRanges) = try await getContentInfo(from: url)
             print("downloading \(app.name) (\(app.bundleID)) version \(downloadOutput.bundleShortVersionString)")
@@ -103,46 +104,160 @@ struct Download: AsyncParsableCommand {
             request.setValue("bytes=\(startByte)-", forHTTPHeaderField: "Range")
         }
 
-        let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              200 ... 299 ~= httpResponse.statusCode || httpResponse.statusCode == 206
-        else {
-            throw NSError(domain: "HTTPError", code: (response as? HTTPURLResponse)?.statusCode ?? 0, userInfo: nil)
+        let downloader = ProgressDownloader(
+            fileURL: fileURL,
+            startByte: startByte,
+            totalSize: totalSize,
+            progressHandler: updateProgress(downloaded:total:)
+        )
+
+        print("", terminator: "")
+        try await downloader.download(request: request)
+        updateProgress(downloaded: totalSize, total: totalSize)
+        print("")
+    }
+}
+
+private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
+    private let fileURL: URL
+    private let startByte: Int64
+    private let totalSize: Int64
+    private let progressHandler: (Int64, Int64) -> Void
+
+    private var fileHandle: FileHandle?
+    private var continuation: CheckedContinuation<Void, Error>?
+    private var downloadedBytes: Int64
+    private var lastProgressUpdate = Date()
+
+    init(
+        fileURL: URL,
+        startByte: Int64,
+        totalSize: Int64,
+        progressHandler: @escaping (Int64, Int64) -> Void
+    ) {
+        self.fileURL = fileURL
+        self.startByte = startByte
+        self.totalSize = totalSize
+        self.progressHandler = progressHandler
+        downloadedBytes = startByte
+    }
+
+    func download(request: URLRequest) async throws {
+        try prepareOutputFile()
+
+        let delegateQueue = OperationQueue()
+        delegateQueue.maxConcurrentOperationCount = 1
+
+        let session = URLSession(configuration: .default, delegate: self, delegateQueue: delegateQueue)
+        defer {
+            session.finishTasksAndInvalidate()
         }
 
-        let fileHandle: FileHandle
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            session.dataTask(with: request).resume()
+        }
+    }
+
+    private func prepareOutputFile() throws {
         if startByte > 0, FileManager.default.fileExists(atPath: fileURL.path) {
             fileHandle = try FileHandle(forWritingTo: fileURL)
-            try fileHandle.seek(toOffset: UInt64(startByte))
+            try fileHandle?.seek(toOffset: UInt64(startByte))
         } else {
             FileManager.default.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
             fileHandle = try FileHandle(forWritingTo: fileURL)
         }
+    }
 
-        defer {
-            try? fileHandle.close()
+    func urlSession(
+        _: URLSession,
+        dataTask _: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        guard let httpResponse = response as? HTTPURLResponse,
+              200 ... 299 ~= httpResponse.statusCode || httpResponse.statusCode == 206
+        else {
+            complete(with: NSError(domain: "HTTPError", code: (response as? HTTPURLResponse)?.statusCode ?? 0, userInfo: nil))
+            completionHandler(.cancel)
+            return
         }
 
-        var downloadedBytes: Int64 = startByte
-        var lastProgressUpdate = Date()
-        let progressUpdateInterval: TimeInterval = 0.5
+        completionHandler(.allow)
+    }
 
-        print("", terminator: "")
-
-        for try await byte in asyncBytes {
-            let data = Data([byte])
-            try fileHandle.write(contentsOf: data)
-            downloadedBytes += 1
+    func urlSession(_: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        do {
+            try fileHandle?.write(contentsOf: data)
+            downloadedBytes += Int64(data.count)
 
             let now = Date()
-            if now.timeIntervalSince(lastProgressUpdate) >= progressUpdateInterval {
-                updateProgress(downloaded: downloadedBytes, total: totalSize)
+            if now.timeIntervalSince(lastProgressUpdate) >= 0.5 {
+                progressHandler(downloadedBytes, totalSize)
                 lastProgressUpdate = now
             }
+        } catch {
+            complete(with: error)
+            dataTask.cancel()
+        }
+    }
+
+    func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: Error?) {
+        complete(with: error)
+    }
+
+    private func complete(with error: Error?) {
+        try? fileHandle?.close()
+        fileHandle = nil
+
+        guard let continuation else {
+            return
         }
 
-        updateProgress(downloaded: downloadedBytes, total: totalSize)
-        print("")
+        self.continuation = nil
+        if let error {
+            continuation.resume(throwing: error)
+        } else {
+            continuation.resume()
+        }
+    }
+}
+
+private extension Download {
+    private func validateOutputURL(_ output: String) throws -> URL {
+        let outputURL = URL(fileURLWithPath: output).standardizedFileURL
+
+        guard outputURL.pathExtension.caseInsensitiveCompare("ipa") == .orderedSame else {
+            throw NSError(
+                domain: "InvalidOutputPath",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Output path must end with .ipa"]
+            )
+        }
+
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: outputURL.path, isDirectory: &isDirectory),
+           isDirectory.boolValue
+        {
+            throw NSError(
+                domain: "InvalidOutputPath",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Output path must point to an ipa file"]
+            )
+        }
+
+        let parentURL = outputURL.deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: parentURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            throw NSError(
+                domain: "InvalidOutputPath",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Output directory does not exist: \(parentURL.path)"]
+            )
+        }
+
+        return outputURL
     }
 
     private func updateProgress(downloaded: Int64, total: Int64) {
