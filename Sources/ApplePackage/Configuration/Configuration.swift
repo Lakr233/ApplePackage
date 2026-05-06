@@ -19,7 +19,7 @@ public enum Configuration {
      **It is a must set value before any network request**
      **otherwise your account may be locked for security reason**
      */
-    public nonisolated(unsafe) static var deviceIdentifier: String = (try? DeviceIdentifier.system()) ?? "" {
+    public static var deviceIdentifier: String = (try? DeviceIdentifier.system()) ?? "" {
         didSet {
             assert(!deviceIdentifier.contains(":"))
             assert(!deviceIdentifier.contains("-"))
@@ -28,9 +28,9 @@ public enum Configuration {
         }
     }
 
-    public nonisolated(unsafe) static var userAgent: String = "Configurator/2.17 (Macintosh; OS X 15.2; 24C5089c) AppleWebKit/0620.1.16.11.6"
+    public static var userAgent: String = "Configurator/2.17 (Macintosh; OS X 15.2; 24C5089c) AppleWebKit/0620.1.16.11.6"
 
-    public nonisolated(unsafe) static var tlsConfiguration: TLSConfiguration = {
+    public static var tlsConfiguration: TLSConfiguration = {
         precondition(!deviceIdentifier.isEmpty, "deviceIdentifier must be set")
         #if DEBUG
             var conf = TLSConfiguration.makeClientConfiguration()
@@ -46,14 +46,14 @@ public enum Configuration {
     public static let timeoutRead: Int64 = 30
 
     #if os(macOS)
-        public nonisolated(unsafe) static var homePath: URL = FileManager.default
+        public static var homePath: URL = FileManager.default
             .homeDirectoryForCurrentUser
             .appendingPathComponent(".ipatool", isDirectory: true)
         {
             didSet { assert(homePath.isFileURL) }
         }
     #else
-        public nonisolated(unsafe) static var homePath: URL = FileManager.default
+        public static var homePath: URL = FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask).first!
             .appendingPathComponent(".ipatool", isDirectory: true)
         {

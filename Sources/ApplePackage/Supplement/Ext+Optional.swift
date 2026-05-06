@@ -9,9 +9,9 @@ import Foundation
 
 extension Optional {
     func get(_ error: String? = nil) throws -> Wrapped {
-        guard let self else {
+        guard let value = self else {
             try ensureFailed("\(error ?? "unexpected nil value")")
         }
-        return self
+        return value
     }
 }

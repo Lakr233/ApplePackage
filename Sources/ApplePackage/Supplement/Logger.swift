@@ -9,9 +9,9 @@ import Foundation
 import Logging
 
 public enum APLogger {
-    public nonisolated(unsafe) static var verbose: Bool = false
+    public static var verbose: Bool = false
 
-    private nonisolated(unsafe) static var _logger: Logger = .init(label: "com.applepackage")
+    private static var _logger: Logger = .init(label: "com.applepackage")
 
     public static var logger: Logger {
         get { _logger }
@@ -46,7 +46,7 @@ public enum APLogger {
     static func logResponse(status: UInt, headers: [(String, String)] = [], bodySize: Int? = nil) {
         guard verbose else { return }
         var msg = "<<< \(status)"
-        if let bodySize {
+        if let bodySize = bodySize {
             msg += " (\(bodySize) bytes)"
         }
         for (name, value) in headers {

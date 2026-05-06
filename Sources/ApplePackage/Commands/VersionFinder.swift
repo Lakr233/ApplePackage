@@ -9,7 +9,7 @@ import AsyncHTTPClient
 import Foundation
 
 public enum VersionFinder {
-    public nonisolated static func list(
+    public static func list(
         account: inout Account,
         bundleIdentifier: String
     ) async throws -> [String] {
@@ -98,7 +98,7 @@ public enum VersionFinder {
                     if customerMessage == Strings.passwordChanged {
                         try ensureFailed(Strings.passwordTokenExpired)
                     }
-                    if let customerMessage {
+                    if let customerMessage = customerMessage {
                         try ensureFailed(customerMessage)
                     }
                     try ensureFailed(Strings.noItemsInResponse)
@@ -121,7 +121,7 @@ public enum VersionFinder {
         return result
     }
 
-    private nonisolated static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
+    private static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"
         comps.host = Configuration.storeAPIHost(pod: pod)
@@ -130,7 +130,7 @@ public enum VersionFinder {
         return try comps.url.get()
     }
 
-    private nonisolated static func makeRequest(
+    private static func makeRequest(
         account: Account,
         app: Software,
         url: URL,

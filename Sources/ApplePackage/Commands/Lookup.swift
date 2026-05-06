@@ -14,7 +14,7 @@ public enum Lookup {
         var results: [Software]
     }
 
-    public nonisolated static func lookup(
+    public static func lookup(
         bundleID: String,
         countryCode: String
     ) async throws -> Software {
@@ -50,7 +50,7 @@ public enum Lookup {
         return lookupResponse.results.first!
     }
 
-    private nonisolated static func makeRequest(
+    private static func makeRequest(
         bundleID: String,
         countryCode: String
     ) throws -> HTTPClient.Request {
@@ -63,7 +63,7 @@ public enum Lookup {
         )
     }
 
-    private nonisolated static func createLookupURL(
+    private static func createLookupURL(
         bundleID: String,
         countryCode: String
     ) throws -> URL {

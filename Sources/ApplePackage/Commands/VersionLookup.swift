@@ -9,7 +9,7 @@ import AsyncHTTPClient
 import Foundation
 
 public enum VersionLookup {
-    public nonisolated static func getVersionMetadata(
+    public static func getVersionMetadata(
         account: inout Account,
         app: Software,
         versionID: String
@@ -105,7 +105,7 @@ public enum VersionLookup {
         return VersionMetadata(displayVersion: bundleShortVersionString, releaseDate: releaseDate)
     }
 
-    private nonisolated static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
+    private static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"
         comps.host = Configuration.storeAPIHost(pod: pod)
@@ -114,7 +114,7 @@ public enum VersionLookup {
         return try comps.url.get()
     }
 
-    private nonisolated static func makeRequest(
+    private static func makeRequest(
         account: Account,
         app: Software,
         url: URL,

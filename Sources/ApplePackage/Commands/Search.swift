@@ -14,7 +14,7 @@ public enum Searcher {
         var results: [Software]
     }
 
-    public nonisolated static func search(
+    public static func search(
         term: String,
         countryCode: String,
         limit: Int = 5,
@@ -53,7 +53,7 @@ public enum Searcher {
         return searchResponse.results
     }
 
-    private nonisolated static func makeRequest(
+    private static func makeRequest(
         term: String,
         countryCode: String,
         limit: Int,
@@ -73,7 +73,7 @@ public enum Searcher {
         )
     }
 
-    private nonisolated static func createSearchURL(
+    private static func createSearchURL(
         term: String,
         countryCode: String,
         limit: Int,

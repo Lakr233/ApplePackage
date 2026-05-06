@@ -17,7 +17,7 @@ struct GlobalOptions: ParsableArguments {
     var verbose: Bool = false
 
     func apply() {
-        if let guid {
+        if let guid = guid {
             Configuration.deviceIdentifier = guid
         }
         if verbose {

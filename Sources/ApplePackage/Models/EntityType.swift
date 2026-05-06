@@ -20,9 +20,9 @@ extension EntityType {
     var entityValue: String {
         switch self {
         case .iPhone:
-            "software"
+            return "software"
         case .iPad:
-            "iPadSoftware"
+            return "iPadSoftware"
         }
     }
 }

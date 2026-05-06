@@ -9,7 +9,7 @@ import AsyncHTTPClient
 import Foundation
 
 public enum Download {
-    public nonisolated static func download(
+    public static func download(
         account: inout Account,
         app: Software,
         externalVersionID: String? = nil
@@ -71,7 +71,7 @@ public enum Download {
                 if customerMessage == Strings.passwordChanged {
                     try ensureFailed(Strings.passwordTokenExpired)
                 }
-                if let customerMessage {
+                if let customerMessage = customerMessage {
                     try ensureFailed(customerMessage)
                 }
                 try ensureFailed("\(Strings.downloadFailed): \(failureType)")
@@ -130,7 +130,7 @@ public enum Download {
         )
     }
 
-    private nonisolated static func makeRequest(
+    private static func makeRequest(
         account: Account,
         app: Software,
         guid: String,

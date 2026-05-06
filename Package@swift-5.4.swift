@@ -12,24 +12,22 @@ let package = Package(
     products: [
         .library(name: "ApplePackage", targets: ["ApplePackage"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/weichsel/ZIPFoundation.git", .upToNextMajor(from: "0.9.0")),
-        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.9.0"),
-        .package(url: "https://github.com/apple/swift-collections.git", from: "1.2.1"),
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
-    ],
+    dependencies: [],
     targets: [
-        .executableTarget(name: "ApplePackageTool", dependencies: [
-            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            .target(name: "ApplePackage"),
-        ]),
-        .target(name: "ApplePackage", dependencies: [
-            .product(name: "ZIPFoundation", package: "ZIPFoundation"),
-            .product(name: "AsyncHTTPClient", package: "async-http-client"),
-            .product(name: "Collections", package: "swift-collections"),
-            .product(name: "Logging", package: "swift-log"),
-        ]),
-        .testTarget(name: "ApplePackageTests", dependencies: ["ApplePackage"]),
+        .target(
+            name: "ApplePackage",
+            dependencies: [],
+            exclude: [
+                "Commands",
+                "Configuration",
+                "Models/Account.swift",
+                "Supplement/Accounts.swift",
+                "Supplement/Cookie.swift",
+                "Supplement/Ext+Optional.swift",
+                "Supplement/Logger.swift",
+                "Supplement/SignatureInjector.swift",
+                "Supplement/Then.swift",
+            ]
+        ),
     ]
 )

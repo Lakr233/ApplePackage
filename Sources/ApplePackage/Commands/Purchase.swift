@@ -9,7 +9,7 @@ import AsyncHTTPClient
 import Foundation
 
 public enum Purchase {
-    public nonisolated static func purchase(
+    public static func purchase(
         account: inout Account,
         app: Software
     ) async throws {
@@ -32,7 +32,7 @@ public enum Purchase {
         }
     }
 
-    private nonisolated static func purchaseWithParams(
+    private static func purchaseWithParams(
         account: inout Account,
         app: Software,
         guid: String,
@@ -101,7 +101,7 @@ public enum Purchase {
                 if customerMessage == Strings.passwordChanged {
                     try ensureFailed(Strings.passwordTokenExpired)
                 }
-                if let customerMessage {
+                if let customerMessage = customerMessage {
                     if customerMessage == "Subscription Required" {
                         try ensureFailed(Strings.subscriptionRequired)
                     }
@@ -119,7 +119,7 @@ public enum Purchase {
         }
     }
 
-    private nonisolated static func makeRequest(
+    private static func makeRequest(
         account: Account,
         app: Software,
         guid: String,

@@ -17,7 +17,7 @@ public enum Authenticator {
         case failure(String)
     }
 
-    public nonisolated static func authenticate(
+    public static func authenticate(
         email: String,
         password: String,
         code: String = "",
@@ -90,11 +90,11 @@ public enum Authenticator {
             }
         }
 
-        if let lastError { throw lastError }
+        if let lastError = lastError { throw lastError }
         try ensureFailed(Strings.authFailedUnknown)
     }
 
-    public nonisolated static func rotatePasswordToken(for account: inout Account) async throws {
+    public static func rotatePasswordToken(for account: inout Account) async throws {
         let newAccount = try await authenticate(
             email: account.email,
             password: account.password,
@@ -104,7 +104,7 @@ public enum Authenticator {
         account = newAccount
     }
 
-    private nonisolated static func createInitialRequestEndpoint(
+    private static func createInitialRequestEndpoint(
         baseURL: URL,
         deviceIdentifier: String
     ) throws -> URL {
@@ -117,7 +117,7 @@ public enum Authenticator {
         return try comps.url.get()
     }
 
-    private nonisolated static func makeRequest(
+    private static func makeRequest(
         endpoint: URL,
         email: String,
         password: String,
@@ -154,7 +154,7 @@ public enum Authenticator {
         )
     }
 
-    private nonisolated static func parseResponse(
+    private static func parseResponse(
         _ response: HTTPClient.Response,
         email: String,
         password: String,

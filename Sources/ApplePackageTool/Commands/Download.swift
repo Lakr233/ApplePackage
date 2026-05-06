@@ -216,7 +216,7 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
         }
 
         self.continuation = nil
-        if let error {
+        if let error = error {
             continuation.resume(throwing: error)
         } else {
             continuation.resume()

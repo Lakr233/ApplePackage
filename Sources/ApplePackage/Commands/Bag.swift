@@ -15,7 +15,7 @@ public enum Bag {
 
     private static let defaultAuthEndpoint = "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate"
 
-    public nonisolated static func fetchBag() async throws -> BagOutput {
+    public static func fetchBag() async throws -> BagOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
 
         let client = HTTPClient(
