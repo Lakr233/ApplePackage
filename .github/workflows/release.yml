@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build ApplePackageTool
-        run: swift build -c release --target ApplePackageTool
+        run: swift build -c release --product ApplePackageTool
 
       - name: Package artifact
         run: |
@@ -34,9 +34,15 @@ jobs:
           artifact_dir="${RUNNER_TEMP}/${artifact_name}"
           build_dir="$(swift build -c release --show-bin-path)"
           toolchain="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain"
+          binary_path="${build_dir}/${product_name}"
+
+          if [[ ! -x "${binary_path}" ]]; then
+            echo "::error::Built binary ${product_name} was not found"
+            exit 1
+          fi
 
           mkdir -p "${artifact_dir}"
-          cp "${build_dir}/${product_name}" "${artifact_dir}/${product_name}"
+          cp "${binary_path}" "${artifact_dir}/${product_name}"
 
           for dylib in \
             "${toolchain}/usr/lib/swift-5.5/macosx/libswift_Concurrency.dylib" \

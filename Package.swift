@@ -12,6 +12,7 @@ let package = Package(
     ],
     products: [
         .library(name: "ApplePackage", targets: ["ApplePackage"]),
+        .executable(name: "ApplePackageTool", targets: ["ApplePackageTool"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", .upToNextMajor(from: "0.9.0")),
