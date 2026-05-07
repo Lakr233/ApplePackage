@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ApplePackageTool
+        run: swift build -c release --target ApplePackageTool
+
+      - name: Package artifact
+        run: |
+          set -euo pipefail
+
+          product_name="ApplePackageTool"
+          safe_ref="${GITHUB_REF_NAME//\//-}"
+          arch="$(uname -m)"
+          artifact_name="${product_name}-${safe_ref}-macos-${arch}"
+          artifact_dir="${RUNNER_TEMP}/${artifact_name}"
+          toolchain="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain"
+
+          mkdir -p "${artifact_dir}"
+          cp ".build/release/${product_name}" "${artifact_dir}/${product_name}"
+
+          for dylib in \
+            "${toolchain}/usr/lib/swift-5.5/macosx/libswift_Concurrency.dylib" \
+            "${toolchain}/usr/lib/swift-6.2/macosx/libswiftCompatibilitySpan.dylib"; do
+            if [[ -f "${dylib}" ]]; then
+              cp "${dylib}" "${artifact_dir}/"
+            fi
+          done
+
+          printf '%s\n' \
+            "Keep the bundled Swift dylibs next to ApplePackageTool when running on macOS 11." \
+            > "${artifact_dir}/README.txt"
+
+          (cd "${RUNNER_TEMP}" && ditto -c -k --sequesterRsrc --keepParent "${artifact_name}" "${GITHUB_WORKSPACE}/${artifact_name}.zip")
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --notes "Release ${GITHUB_REF_NAME}"
+
+      - name: Upload release artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          safe_ref="${GITHUB_REF_NAME//\//-}"
+          arch="$(uname -m)"
+          gh release upload "${GITHUB_REF_NAME}" \
+            "ApplePackageTool-${safe_ref}-macos-${arch}.zip" \
+            --clobber
