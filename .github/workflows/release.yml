@@ -32,10 +32,11 @@ jobs:
           arch="$(uname -m)"
           artifact_name="${product_name}-${safe_ref}-macos-${arch}"
           artifact_dir="${RUNNER_TEMP}/${artifact_name}"
+          build_dir="$(swift build -c release --show-bin-path)"
           toolchain="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain"
 
           mkdir -p "${artifact_dir}"
-          cp ".build/release/${product_name}" "${artifact_dir}/${product_name}"
+          cp "${build_dir}/${product_name}" "${artifact_dir}/${product_name}"
 
           for dylib in \
             "${toolchain}/usr/lib/swift-5.5/macosx/libswift_Concurrency.dylib" \
