@@ -26,20 +26,34 @@ struct Download: AsyncParsableCommand {
     @Option(help: "Version ID")
     var versionID: String?
 
+    @Option(help: "Platform to download for: iPhone, iPad, or AppleTV")
+    var platform: PlatformArgument?
+
     @Option(help: "Output path")
     var output: String
 
     func run() async throws {
         globalOptions.apply()
         let outputURL = try validateOutputURL(output)
+        let entityType = platform?.entityType
 
         try await Configuration.withAccount(email: email) { account in
             try await Authenticator.rotatePasswordToken(for: &account)
             guard let country = Configuration.countryCode(for: account.store) else {
                 throw NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported store identifier: \(account.store)"])
             }
-            let app = try await Lookup.lookup(bundleID: bundleID, countryCode: country)
-            let downloadOutput = try await ApplePackage.Download.download(account: &account, app: app, externalVersionID: versionID ?? "")
+            let app = try await Lookup.lookup(bundleID: bundleID, countryCode: country, entityType: entityType)
+            let resolvedVersionID = try await resolveVersionID(
+                requestedVersionID: versionID,
+                app: app,
+                country: country,
+                entityType: entityType
+            )
+            let downloadOutput = try await ApplePackage.Download.download(
+                account: &account,
+                app: app,
+                externalVersionID: resolvedVersionID
+            )
 
             let url = URL(string: downloadOutput.downloadURL)!
 
@@ -76,6 +90,10 @@ struct Download: AsyncParsableCommand {
                 iTunesMetadata: downloadOutput.iTunesMetadata,
                 into: tempURL.path
             )
+
+            if let entityType {
+                try PackagePlatformValidator.ensurePackage(at: tempURL, supports: entityType)
+            }
 
             try replaceOutput(at: outputURL, with: tempURL)
 
@@ -116,6 +134,28 @@ struct Download: AsyncParsableCommand {
         try await downloader.download(request: request)
         updateProgress(downloaded: totalSize, total: totalSize)
         print("")
+    }
+
+    private func resolveVersionID(
+        requestedVersionID: String?,
+        app: Software,
+        country: String,
+        entityType: EntityType?
+    ) async throws -> String {
+        if let requestedVersionID, !requestedVersionID.isEmpty {
+            return requestedVersionID
+        }
+
+        guard let entityType else {
+            return ""
+        }
+
+        let metadata = try await PlatformVersionLookup.lookup(
+            appID: app.id,
+            countryCode: country,
+            entityType: entityType
+        )
+        return metadata.externalVersionID
     }
 }
 

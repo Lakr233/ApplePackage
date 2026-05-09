@@ -9,6 +9,23 @@ import ApplePackage
 import ArgumentParser
 import Foundation
 
+enum PlatformArgument: String, ExpressibleByArgument {
+    case iPhone
+    case iPad
+    case AppleTV
+
+    var entityType: EntityType {
+        switch self {
+        case .iPhone:
+            return .iPhone
+        case .iPad:
+            return .iPad
+        case .AppleTV:
+            return .appleTV
+        }
+    }
+}
+
 struct GlobalOptions: ParsableArguments {
     @Option(name: .long, help: "Custom device GUID (default: system MAC address)")
     var guid: String?

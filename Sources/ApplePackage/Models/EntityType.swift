@@ -14,6 +14,7 @@ public enum EntityType: String, Codable, CaseIterable, Hashable, Equatable, Iden
 
     case iPhone
     case iPad
+    case appleTV = "AppleTV"
 }
 
 extension EntityType {
@@ -23,6 +24,26 @@ extension EntityType {
             return "software"
         case .iPad:
             return "iPadSoftware"
+        case .appleTV:
+            return "tvSoftware"
+        }
+    }
+
+    var searchEntityValue: String {
+        switch self {
+        case .iPhone, .iPad:
+            return entityValue
+        case .appleTV:
+            return "software,tvSoftware"
+        }
+    }
+
+    var metadataPlatformValue: String {
+        switch self {
+        case .iPhone, .iPad:
+            return "enterprisestore"
+        case .appleTV:
+            return "atv9"
         }
     }
 }

@@ -25,6 +25,7 @@ let package = Package(
                 "Supplement/Cookie.swift",
                 "Supplement/Ext+Optional.swift",
                 "Supplement/Logger.swift",
+                "Supplement/PackagePlatformValidator.swift",
                 "Supplement/SignatureInjector.swift",
                 "Supplement/Then.swift",
             ]
