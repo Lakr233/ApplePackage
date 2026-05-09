@@ -24,10 +24,18 @@ struct Search: AsyncParsableCommand {
     @Option(help: "Limit")
     var limit: Int = 10
 
+    @Option(help: "Platform to search: iPhone, iPad, or AppleTV")
+    var platform: PlatformArgument = .iPhone
+
     func run() async throws {
-        let results = try await Searcher.search(term: term, countryCode: country, limit: limit)
+        let results = try await Searcher.search(
+            term: term,
+            countryCode: country,
+            limit: limit,
+            entityType: platform.entityType
+        )
         for app in results {
-            print("\(app.bundleID): \(app.name)")
+            print("\(app.id) \(app.bundleID): \(app.name)")
         }
     }
 }

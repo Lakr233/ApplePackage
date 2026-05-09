@@ -11,12 +11,27 @@ import Foundation
 public enum VersionFinder {
     public static func list(
         account: inout Account,
-        bundleIdentifier: String
+        bundleIdentifier: String,
+        entityType: EntityType? = nil,
+        externalVersionID: String? = nil
     ) async throws -> [String] {
         guard let countryCode = Configuration.countryCode(for: account.store) else {
             try ensureFailed(Strings.unsupportedStoreIdentifier(account.store))
         }
-        let app = try await Lookup.lookup(bundleID: bundleIdentifier, countryCode: countryCode)
+        let app = try await Lookup.lookup(bundleID: bundleIdentifier, countryCode: countryCode, entityType: entityType)
+        let resolvedExternalVersionID: String
+        if let externalVersionID {
+            resolvedExternalVersionID = externalVersionID
+        } else if let entityType {
+            let metadata = try await PlatformVersionLookup.lookup(
+                appID: app.id,
+                countryCode: countryCode,
+                entityType: entityType
+            )
+            resolvedExternalVersionID = metadata.externalVersionID
+        } else {
+            resolvedExternalVersionID = ""
+        }
 
         let client = HTTPClient(
             eventLoopGroupProvider: .singleton,
@@ -43,7 +58,8 @@ public enum VersionFinder {
                 account: account,
                 app: app,
                 url: currentURL,
-                guid: deviceIdentifier
+                guid: deviceIdentifier,
+                externalVersionID: resolvedExternalVersionID
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -134,13 +150,18 @@ public enum VersionFinder {
         account: Account,
         app: Software,
         url: URL,
-        guid: String
+        guid: String,
+        externalVersionID: String
     ) throws -> HTTPClient.Request {
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "creditDisplay": "",
             "guid": guid,
             "salableAdamId": app.id,
         ]
+
+        if !externalVersionID.isEmpty {
+            payload["externalVersionId"] = externalVersionID
+        }
 
         let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)
 

@@ -84,7 +84,7 @@ public enum Searcher {
         comps.host = "itunes.apple.com"
         comps.path = "/search"
         comps.queryItems = [
-            URLQueryItem(name: "entity", value: entityType.entityValue),
+            URLQueryItem(name: "entity", value: entityType.searchEntityValue),
             URLQueryItem(name: "limit", value: "\(limit)"),
             URLQueryItem(name: "media", value: "software"),
             URLQueryItem(name: "term", value: term),

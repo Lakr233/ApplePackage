@@ -16,7 +16,8 @@ public enum Lookup {
 
     public static func lookup(
         bundleID: String,
-        countryCode: String
+        countryCode: String,
+        entityType: EntityType? = nil
     ) async throws -> Software {
         let client = HTTPClient(
             eventLoopGroupProvider: .singleton,
@@ -31,7 +32,7 @@ public enum Lookup {
         )
         defer { _ = client.shutdown() }
 
-        let request = try makeRequest(bundleID: bundleID, countryCode: countryCode)
+        let request = try makeRequest(bundleID: bundleID, countryCode: countryCode, entityType: entityType)
         let response = try await client.execute(request: request).get()
 
         try ensure(response.status == .ok, "lookup request failed with status \(response.status.code)")
@@ -52,9 +53,10 @@ public enum Lookup {
 
     private static func makeRequest(
         bundleID: String,
-        countryCode: String
+        countryCode: String,
+        entityType: EntityType?
     ) throws -> HTTPClient.Request {
-        let url = try createLookupURL(bundleID: bundleID, countryCode: countryCode)
+        let url = try createLookupURL(bundleID: bundleID, countryCode: countryCode, entityType: entityType)
         return try .init(
             url: url.absoluteString,
             method: .GET,
@@ -65,7 +67,8 @@ public enum Lookup {
 
     private static func createLookupURL(
         bundleID: String,
-        countryCode: String
+        countryCode: String,
+        entityType: EntityType?
     ) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"
@@ -74,7 +77,7 @@ public enum Lookup {
         comps.queryItems = [
             URLQueryItem(name: "bundleId", value: bundleID),
             URLQueryItem(name: "country", value: countryCode),
-            URLQueryItem(name: "entity", value: "software,iPadSoftware"),
+            URLQueryItem(name: "entity", value: entityType?.entityValue ?? "software,iPadSoftware"),
             URLQueryItem(name: "limit", value: "1"),
             URLQueryItem(name: "media", value: "software"),
         ]

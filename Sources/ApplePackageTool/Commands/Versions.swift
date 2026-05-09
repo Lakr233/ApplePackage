@@ -23,10 +23,21 @@ struct Versions: AsyncParsableCommand {
     @Argument(help: "Bundle ID")
     var bundleID: String
 
+    @Option(help: "Platform to list versions for: iPhone, iPad, or AppleTV")
+    var platform: PlatformArgument?
+
+    @Option(help: "Seed version ID used to select a platform-specific version line")
+    var versionID: String?
+
     func run() async throws {
         globalOptions.apply()
         try await Configuration.withAccount(email: email) { account in
-            let versions = try await VersionFinder.list(account: &account, bundleIdentifier: bundleID)
+            let versions = try await VersionFinder.list(
+                account: &account,
+                bundleIdentifier: bundleID,
+                entityType: platform?.entityType,
+                externalVersionID: versionID
+            )
             for version in versions {
                 print(version)
             }

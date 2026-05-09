@@ -29,6 +29,7 @@ public enum Strings {
     static let missingRequiredInfo = "missing required information"
     static let invalidSinfItem = "invalid sinf item"
     static let noSinfFound = "no sinf found in response"
+    static let appleTVPackageValidationFailed = "downloaded package does not declare AppleTVOS support"
 
     // MARK: - Purchase
 
