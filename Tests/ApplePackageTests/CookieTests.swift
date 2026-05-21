@@ -7,6 +7,7 @@
 
 @testable import ApplePackage
 import AsyncHTTPClient
+import Foundation
 import XCTest
 
 final class ApplePackageCookieTests: XCTestCase {
