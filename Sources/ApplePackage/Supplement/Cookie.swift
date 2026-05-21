@@ -59,8 +59,8 @@ public extension [Cookie] {
     mutating func mergeCookies(_ cookies: [HTTPClient.Cookie]) {
         let cookies = cookies.map { Cookie(copyFrom: $0) }
         var dict: [String: Cookie] = [:]
-        self.forEach { cookie in dict[cookie.name] = cookie }
-        cookies.forEach { cookie in dict[cookie.name] = cookie }
+        self.forEach { cookie in dict[cookie.storageKey] = cookie }
+        cookies.forEach { cookie in dict[cookie.storageKey] = cookie }
         self = Array(dict.values)
     }
 
@@ -141,7 +141,7 @@ public extension [Cookie] {
     }
 
     private func matchesDomain(cookieDomain: String, requestHost: String) -> Bool {
-        let normalizedCookieDomain = cookieDomain.lowercased()
+        let normalizedCookieDomain = cookieDomain.trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased()
         let normalizedRequestHost = requestHost.lowercased()
 
         return false
@@ -161,5 +161,15 @@ public extension [Cookie] {
         }
 
         return true
+    }
+}
+
+private extension Cookie {
+    var storageKey: String {
+        [
+            name,
+            domain?.trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased() ?? "",
+            path,
+        ].joined(separator: "\u{1f}")
     }
 }
