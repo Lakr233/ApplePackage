@@ -8,6 +8,8 @@
 import AsyncHTTPClient
 import Foundation
 
+private let cookieDomainTrimCharacters = CharacterSet(charactersIn: ".")
+
 public struct Cookie: Sendable, Codable, Equatable, Hashable {
     public var name: String
     public var value: String
@@ -59,8 +61,8 @@ public extension [Cookie] {
     mutating func mergeCookies(_ cookies: [HTTPClient.Cookie]) {
         let cookies = cookies.map { Cookie(copyFrom: $0) }
         var dict: [String: Cookie] = [:]
-        self.forEach { cookie in dict[cookie.name] = cookie }
-        cookies.forEach { cookie in dict[cookie.name] = cookie }
+        self.forEach { cookie in dict[cookie.storageKey] = cookie }
+        cookies.forEach { cookie in dict[cookie.storageKey] = cookie }
         self = Array(dict.values)
     }
 
@@ -141,7 +143,7 @@ public extension [Cookie] {
     }
 
     private func matchesDomain(cookieDomain: String, requestHost: String) -> Bool {
-        let normalizedCookieDomain = cookieDomain.lowercased()
+        let normalizedCookieDomain = cookieDomain.normalizedCookieDomain
         let normalizedRequestHost = requestHost.lowercased()
 
         return false
@@ -161,5 +163,21 @@ public extension [Cookie] {
         }
 
         return true
+    }
+}
+
+private extension Cookie {
+    var storageKey: String {
+        [
+            name,
+            domain.map { "domain:\($0.normalizedCookieDomain)" } ?? "host-only",
+            path,
+        ].joined(separator: "\u{1f}")
+    }
+}
+
+private extension String {
+    var normalizedCookieDomain: String {
+        trimmingCharacters(in: cookieDomainTrimCharacters).lowercased()
     }
 }
