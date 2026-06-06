@@ -84,7 +84,7 @@ public enum Bag {
         let urlBag = plist["urlBag"] as? [String: Any] ?? plist
 
         guard let authURLString = urlBag["authenticateAccount"] as? String,
-              let authURL = URL(string: authURLString)
+              let authURL = URL(string: authURLString + "/fast")
         else {
             APLogger.debug("bag: no authenticateAccount in plist, using default auth endpoint")
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
