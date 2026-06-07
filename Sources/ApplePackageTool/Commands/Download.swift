@@ -28,6 +28,7 @@ struct Download: AsyncParsableCommand {
 
     @Option(help: "Platform to download for: iPhone, iPad, or AppleTV")
     var platform: PlatformArgument?
+    
 
     @Option(help: "Output path")
     var output: String
@@ -35,7 +36,7 @@ struct Download: AsyncParsableCommand {
     func run() async throws {
         globalOptions.apply()
         let outputURL = try validateOutputURL(output)
-        let entityType = platform?.entityType
+        let entityType = platform?.entityType ?? EntityType.iPhone
 
         try await Configuration.withAccount(email: email) { account in
             try await Authenticator.rotatePasswordToken(for: &account)
@@ -91,9 +92,7 @@ struct Download: AsyncParsableCommand {
                 into: tempURL.path
             )
 
-            if let entityType {
-                try PackagePlatformValidator.ensurePackage(at: tempURL, supports: entityType)
-            }
+            try PackagePlatformValidator.ensurePackage(at: tempURL, supports: entityType)
 
             try replaceOutput(at: outputURL, with: tempURL)
 

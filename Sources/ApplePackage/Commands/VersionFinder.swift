@@ -48,7 +48,39 @@ public enum VersionFinder {
 
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        var currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod)
+        var volumeStore = true
+        var currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod, volumeStore: volumeStore)
+        let request = try makeRequest(
+            account: account,
+            app: app,
+            url: currentURL,
+            guid: deviceIdentifier,
+            externalVersionID: resolvedExternalVersionID,
+            volumeStore: volumeStore
+        )
+        let checkResponse = try await client.execute(request: request).get()
+        
+        guard var body = checkResponse.body,
+              let data = body.readData(length: body.readableBytes)
+        else {
+            try ensureFailed(Strings.responseBodyEmpty)
+        }
+        
+        let checkPlist = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        ) as? [String: Any]
+        guard let dict = checkPlist else { try ensureFailed(Strings.invalidResponse) }
+        
+        if (dict.keys.contains("failureType")) {
+            if (dict["failureType"] as! String == "5002") {
+                volumeStore = false
+                currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod, volumeStore: volumeStore)
+            }
+        }
+        
+        
         var redirectAttempt = 0
         var finalResponse: HTTPClient.Response?
         let maxRedirects = 3
@@ -59,7 +91,8 @@ public enum VersionFinder {
                 app: app,
                 url: currentURL,
                 guid: deviceIdentifier,
-                externalVersionID: resolvedExternalVersionID
+                externalVersionID: resolvedExternalVersionID,
+                volumeStore: volumeStore
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -137,32 +170,45 @@ public enum VersionFinder {
         return result
     }
 
-    private static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
+    private static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?, volumeStore: Bool) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"
-        comps.host = Configuration.storeAPIHost(pod: pod)
-        comps.path = "/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
+        if (volumeStore) {
+            comps.host = Configuration.storeAPIHost(pod: pod)
+            comps.path = "/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
+        } else {
+            comps.host = "downloaddispatch.itunes.apple.com"
+            comps.path = "/r/redownload"
+        }
+        
         comps.queryItems = [URLQueryItem(name: "guid", value: deviceIdentifier)]
         return try comps.url.get()
     }
 
-    private static func makeRequest(
+    public static func makeRequest(
         account: Account,
         app: Software,
         url: URL,
         guid: String,
-        externalVersionID: String
+        externalVersionID: String,
+        volumeStore: Bool
     ) throws -> HTTPClient.Request {
         var payload: [String: Any] = [
             "creditDisplay": "",
             "guid": guid,
             "salableAdamId": app.id,
         ]
-
-        if !externalVersionID.isEmpty {
-            payload["externalVersionId"] = externalVersionID
+        
+        if (volumeStore) {
+            if !externalVersionID.isEmpty {
+                payload["externalVersionId"] = externalVersionID
+            }
+        } else {
+            if !externalVersionID.isEmpty {
+                payload["appExtVrsId"] = externalVersionID
+            }
         }
-
+        
         let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)
 
         var headers: [(String, String)] = [
