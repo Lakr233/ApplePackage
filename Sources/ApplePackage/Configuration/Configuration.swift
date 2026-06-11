@@ -1,6 +1,6 @@
 //
 //  Configuration.swift
-//  IPATool
+//  ApplePackage
 //
 //  Created by QAQ on 2023/10/4.
 //
@@ -92,21 +92,11 @@ public enum Configuration {
     }
 
     public static func saveLoginAccount(_ account: Account, for email: String) {
-        let fileURL = accountPath(for: email)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        let data = try! encoder.encode(account)
-        try! data.write(to: fileURL)
+        ApplePackage.saveLoginAccount(account, for: email)
     }
 
     public static func withAccount<T>(email: String, _ body: (inout Account) async throws -> T) async throws -> T {
-        var account: Account = try {
-            let fileURL = accountPath(for: email)
-            let data = try Data(contentsOf: fileURL)
-            return try JSONDecoder().decode(Account.self, from: data)
-        }()
-        defer { saveLoginAccount(account, for: email) }
-        return try await body(&account)
+        try await ApplePackage.withAccount(email: email, body)
     }
 }
 

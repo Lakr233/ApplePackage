@@ -57,7 +57,9 @@ struct Download: AsyncParsableCommand {
                 externalVersionID: resolvedVersionID
             )
 
-            let url = URL(string: downloadOutput.downloadURL)!
+            guard let url = URL(string: downloadOutput.downloadURL) else {
+                throw NSError(domain: "InvalidResponse", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid download URL: \(downloadOutput.downloadURL)"])
+            }
 
             let (contentLength, supportsRanges) = try await getContentInfo(from: url)
             print("downloading \(app.name) (\(app.bundleID)) version \(downloadOutput.bundleShortVersionString)")

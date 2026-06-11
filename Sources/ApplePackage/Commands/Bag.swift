@@ -18,17 +18,7 @@ public enum Bag {
     public static func fetchBag() async throws -> BagOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        let client = HTTPClient(
-            eventLoopGroupProvider: .singleton,
-            configuration: .init(
-                tlsConfiguration: Configuration.tlsConfiguration,
-                redirectConfiguration: .follow(max: 8, allowCycles: false),
-                timeout: .init(
-                    connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
-        )
+        let client = Configuration.makeHTTPClient(redirectConfiguration: .follow(max: 8, allowCycles: false))
         defer { _ = client.shutdown() }
 
         var comps = URLComponents()

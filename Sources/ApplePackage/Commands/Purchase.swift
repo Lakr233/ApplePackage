@@ -40,17 +40,7 @@ public enum Purchase {
     ) async throws {
         APLogger.debug("purchase: using pricing parameters: \(pricingParameters)")
 
-        let client = HTTPClient(
-            eventLoopGroupProvider: .singleton,
-            configuration: .init(
-                tlsConfiguration: Configuration.tlsConfiguration,
-                redirectConfiguration: .disallow,
-                timeout: .init(
-                    connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
-        )
+        let client = Configuration.makeHTTPClient(redirectConfiguration: .disallow)
         defer { _ = client.shutdown() }
 
         let request = try makeRequest(

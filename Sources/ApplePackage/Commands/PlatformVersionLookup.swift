@@ -23,17 +23,7 @@ public enum PlatformVersionLookup {
         countryCode: String,
         entityType: EntityType
     ) async throws -> PlatformVersionMetadata {
-        let client = HTTPClient(
-            eventLoopGroupProvider: .singleton,
-            configuration: .init(
-                tlsConfiguration: Configuration.tlsConfiguration,
-                redirectConfiguration: .follow(max: 8, allowCycles: false),
-                timeout: .init(
-                    connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
-        )
+        let client = Configuration.makeHTTPClient(redirectConfiguration: .follow(max: 8, allowCycles: false))
         defer { _ = client.shutdown() }
 
         let request = try makeRequest(appID: appID, countryCode: countryCode, entityType: entityType)

@@ -1,6 +1,6 @@
 //
 //  Authenticate.swift
-//
+//  ApplePackage
 //
 //  Created by QAQ on 2023/10/4.
 //
@@ -28,17 +28,7 @@ public enum Authenticator {
 
         let bagOutput = try await Bag.fetchBag()
 
-        let client = HTTPClient(
-            eventLoopGroupProvider: .singleton,
-            configuration: .init(
-                tlsConfiguration: Configuration.tlsConfiguration,
-                redirectConfiguration: .disallow,
-                timeout: .init(
-                    connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
-        )
+        let client = Configuration.makeHTTPClient(redirectConfiguration: .disallow)
         defer { _ = client.shutdown() }
 
         var requestEndpoint: URL = try createInitialRequestEndpoint(baseURL: bagOutput.authEndpoint, deviceIdentifier: deviceIdentifier)

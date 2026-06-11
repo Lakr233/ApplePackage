@@ -32,6 +32,7 @@ struct Versions: AsyncParsableCommand {
     func run() async throws {
         globalOptions.apply()
         try await Configuration.withAccount(email: email) { account in
+            try await Authenticator.rotatePasswordToken(for: &account)
             let versions = try await VersionFinder.list(
                 account: &account,
                 bundleIdentifier: bundleID,
