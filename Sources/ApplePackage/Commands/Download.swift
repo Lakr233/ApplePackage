@@ -12,31 +12,49 @@ public enum Download {
     public static func download(
         account: inout Account,
         app: Software,
-        externalVersionID: String? = nil,
+        externalVersionID: String? = nil
     ) async throws -> DownloadOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        var dict = try await tryDownload(request: makeRequest(
-            account: account,
+        let client = HTTPClient(
+            eventLoopGroupProvider: .singleton,
+            configuration: .init(
+                tlsConfiguration: Configuration.tlsConfiguration,
+                redirectConfiguration: .disallow,
+                timeout: .init(
+                    connect: .seconds(Configuration.timeoutConnect),
+                    read: .seconds(Configuration.timeoutRead)
+                )
+            ).then { $0.httpVersion = .http1Only }
+        )
+        defer { _ = client.shutdown() }
+
+        var result = try await requestProduct(
+            client: client,
+            account: &account,
             app: app,
             guid: deviceIdentifier,
             externalVersionID: externalVersionID ?? "",
-            volumeStore: true
-        ), account: &account)
-        
-        if (dict == nil) {
-            let req = try makeRequest(
-                account: account,
+            endpoint: .volumeStore
+        )
+
+        if result == nil {
+            APLogger.debug("download: volumeStore rejected with 5002, retrying via redownload endpoint")
+            result = try await requestProduct(
+                client: client,
+                account: &account,
                 app: app,
                 guid: deviceIdentifier,
                 externalVersionID: externalVersionID ?? "",
-                volumeStore: false
+                endpoint: .redownload
             )
-            
-            dict = try await tryDownload(request:req, account: &account)
         }
-        
-        guard let items = dict!["songList"] as? [[String: Any]], !items.isEmpty else {
+
+        guard let dict = result else {
+            try ensureFailed("\(Strings.downloadFailed): \(StoreDownloadEndpoint.retryableFailureType)")
+        }
+
+        guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
             try ensureFailed(Strings.noItemsInResponse)
         }
 
@@ -88,68 +106,24 @@ public enum Download {
         )
     }
 
-    private static func makeRequest(
-        account: Account,
+    /// Executes the download product request and parses the plist response.
+    /// Returns `nil` when the endpoint rejects the request with failureType 5002
+    /// so the caller can retry with the fallback endpoint.
+    private static func requestProduct(
+        client: HTTPClient,
+        account: inout Account,
         app: Software,
         guid: String,
         externalVersionID: String,
-        volumeStore: Bool
-    ) throws -> HTTPClient.Request {
-        var payload: [String: Any] = [
-            "creditDisplay": "",
-            "guid": guid,
-            "salableAdamId": app.id,
-        ]
-
-        var headers: [(String, String)] = [
-            ("Content-Type", "application/x-apple-plist"),
-            ("User-Agent", Configuration.userAgent),
-            ("iCloud-DSID", account.directoryServicesIdentifier),
-            ("X-Dsid", account.directoryServicesIdentifier),
-        ]
-
-        let host = Configuration.storeAPIHost(pod: account.pod)
-        var urlString = "";
-        if (volumeStore) {
-            urlString = "https://\(host)/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
-            if !externalVersionID.isEmpty {
-                payload["externalVersionId"] = externalVersionID
-            }
-        } else {
-            urlString = "https://downloaddispatch.itunes.apple.com/r/redownload"
-            if !externalVersionID.isEmpty {
-                payload["appExtVrsId"] = externalVersionID
-            }
-        }
-        
-        let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)
-        
-        for item in account.cookie.buildCookieHeader(URL(string: urlString)!) {
-            headers.append(item)
-        }
-
-        APLogger.logRequest(method: "POST", url: urlString, headers: headers)
-        return try AsyncHTTPClient.HTTPClient.Request.init(
-            url: urlString,
-            method: .POST,
-            headers: .init(headers),
-            body: .data(data)
+        endpoint: StoreDownloadEndpoint
+    ) async throws -> [String: Any]? {
+        let request = try makeRequest(
+            account: account,
+            app: app,
+            guid: guid,
+            externalVersionID: externalVersionID,
+            endpoint: endpoint
         )
-    }
-    public static func tryDownload(request: HTTPClient.Request, account: inout Account) async throws -> [String : Any]? {
-        let client = HTTPClient(
-            eventLoopGroupProvider: .singleton,
-            configuration: .init(
-                tlsConfiguration: Configuration.tlsConfiguration,
-                redirectConfiguration: .disallow,
-                timeout: .init(
-                    connect: .seconds(Configuration.timeoutConnect),
-                    read: .seconds(Configuration.timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
-        )
-        defer { _ = client.shutdown() }
-        
         let response = try await client.execute(request: request).get()
 
         APLogger.logResponse(
@@ -158,10 +132,10 @@ public enum Download {
             bodySize: response.body?.readableBytes
         )
 
+        account.cookie.mergeCookies(response.cookies)
+
         try ensure(response.status == .ok, Strings.requestFailed(status: response.status.code))
 
-        account.cookie.mergeCookies(response.cookies)
-        
         guard var body = response.body,
               let data = body.readData(length: body.readableBytes)
         else {
@@ -182,7 +156,7 @@ public enum Download {
                 try ensureFailed(Strings.passwordTokenExpired)
             case "9610":
                 throw ApplePackageError.licenseRequired
-            case "5002":
+            case StoreDownloadEndpoint.retryableFailureType:
                 return nil
             default:
                 if customerMessage == Strings.passwordChanged {
@@ -194,6 +168,49 @@ public enum Download {
                 try ensureFailed("\(Strings.downloadFailed): \(failureType)")
             }
         }
+
         return dict
+    }
+
+    private static func makeRequest(
+        account: Account,
+        app: Software,
+        guid: String,
+        externalVersionID: String,
+        endpoint: StoreDownloadEndpoint
+    ) throws -> HTTPClient.Request {
+        var payload: [String: Any] = [
+            "creditDisplay": "",
+            "guid": guid,
+            "salableAdamId": app.id,
+        ]
+
+        if !externalVersionID.isEmpty {
+            payload[endpoint.externalVersionIDKey] = externalVersionID
+        }
+
+        let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)
+
+        var headers: [(String, String)] = [
+            ("Content-Type", "application/x-apple-plist"),
+            ("User-Agent", Configuration.userAgent),
+            ("iCloud-DSID", account.directoryServicesIdentifier),
+            ("X-Dsid", account.directoryServicesIdentifier),
+        ]
+
+        let url = try endpoint.url(pod: account.pod, deviceIdentifier: nil)
+
+        for item in account.cookie.buildCookieHeader(url) {
+            headers.append(item)
+        }
+
+        APLogger.logRequest(method: "POST", url: url.absoluteString, headers: headers)
+
+        return try .init(
+            url: url.absoluteString,
+            method: .POST,
+            headers: .init(headers),
+            body: .data(data)
+        )
     }
 }

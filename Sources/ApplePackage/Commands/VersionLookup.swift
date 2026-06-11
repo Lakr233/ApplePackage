@@ -29,37 +29,60 @@ public enum VersionLookup {
 
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        var volumeStore = true
-        var currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod, volumeStore: volumeStore)
-        let request = try makeRequest(
-            account: account,
+        var dict = try await fetchProduct(
+            client: client,
+            account: &account,
             app: app,
-            url: currentURL,
-            guid: deviceIdentifier,
+            deviceIdentifier: deviceIdentifier,
             versionID: versionID,
-            volumeStore: volumeStore
+            endpoint: .volumeStore
         )
-        let checkResponse = try await client.execute(request: request).get()
-        
-        guard var body = checkResponse.body,
-              let data = body.readData(length: body.readableBytes)
+
+        if dict["failureType"] as? String == StoreDownloadEndpoint.retryableFailureType {
+            APLogger.debug("versionLookup: volumeStore rejected with 5002, retrying via redownload endpoint")
+            dict = try await fetchProduct(
+                client: client,
+                account: &account,
+                app: app,
+                deviceIdentifier: deviceIdentifier,
+                versionID: versionID,
+                endpoint: .redownload
+            )
+        }
+
+        guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
+            try ensureFailed(Strings.noItemsInResponse)
+        }
+
+        let item = items[0]
+        guard let metadata = item["metadata"] as? [String: Any] else {
+            try ensureFailed(Strings.missingMetadata)
+        }
+
+        guard let bundleShortVersionString = metadata["bundleShortVersionString"] as? String else {
+            try ensureFailed(Strings.missingBundleShortVersionString)
+        }
+
+        guard let releaseDateString = metadata["releaseDate"] as? String,
+              let releaseDate = ISO8601DateFormatter().date(from: releaseDateString)
         else {
-            try ensureFailed(Strings.responseBodyEmpty)
+            try ensureFailed(Strings.missingOrInvalidReleaseDate)
         }
-        
-        let checkPlist = try PropertyListSerialization.propertyList(
-            from: data,
-            options: [],
-            format: nil
-        ) as? [String: Any]
-        guard let dict = checkPlist else { try ensureFailed(Strings.invalidResponse) }
-        
-        if (dict.keys.contains("failureType")) {
-            if (dict["failureType"] as! String == "5002") {
-                volumeStore = false
-                currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod, volumeStore: volumeStore)
-            }
-        }
+
+        return VersionMetadata(displayVersion: bundleShortVersionString, releaseDate: releaseDate)
+    }
+
+    /// Runs the product request against the given endpoint, following pod
+    /// redirects, and returns the parsed plist response.
+    private static func fetchProduct(
+        client: HTTPClient,
+        account: inout Account,
+        app: Software,
+        deviceIdentifier: String,
+        versionID: String,
+        endpoint: StoreDownloadEndpoint
+    ) async throws -> [String: Any] {
+        var currentURL = try endpoint.url(pod: account.pod, deviceIdentifier: deviceIdentifier)
         var redirectAttempt = 0
         var finalResponse: HTTPClient.Response?
         let maxRedirects = 3
@@ -71,7 +94,7 @@ public enum VersionLookup {
                 url: currentURL,
                 guid: deviceIdentifier,
                 versionID: versionID,
-                volumeStore: volumeStore
+                endpoint: endpoint
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -114,41 +137,7 @@ public enum VersionLookup {
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
-        guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
-            try ensureFailed(Strings.noItemsInResponse)
-        }
-
-        let item = items[0]
-        guard let metadata = item["metadata"] as? [String: Any] else {
-            try ensureFailed(Strings.missingMetadata)
-        }
-
-        guard let bundleShortVersionString = metadata["bundleShortVersionString"] as? String else {
-            try ensureFailed(Strings.missingBundleShortVersionString)
-        }
-
-        guard let releaseDateString = metadata["releaseDate"] as? String,
-              let releaseDate = ISO8601DateFormatter().date(from: releaseDateString)
-        else {
-            try ensureFailed(Strings.missingOrInvalidReleaseDate)
-        }
-
-        return VersionMetadata(displayVersion: bundleShortVersionString, releaseDate: releaseDate)
-    }
-
-    private static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?, volumeStore: Bool) throws -> URL {
-        var comps = URLComponents()
-        comps.scheme = "https"
-        if (volumeStore) {
-            comps.host = Configuration.storeAPIHost(pod: pod)
-            comps.path = "/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
-        } else {
-            comps.host = "downloaddispatch.itunes.apple.com"
-            comps.path = "/r/redownload"
-        }
-        
-        comps.queryItems = [URLQueryItem(name: "guid", value: deviceIdentifier)]
-        return try comps.url.get()
+        return dict
     }
 
     private static func makeRequest(
@@ -157,19 +146,14 @@ public enum VersionLookup {
         url: URL,
         guid: String,
         versionID: String,
-        volumeStore: Bool
+        endpoint: StoreDownloadEndpoint
     ) throws -> HTTPClient.Request {
         var payload: [String: Any] = [
             "creditDisplay": "",
             "guid": guid,
-            "salableAdamId": app.id
+            "salableAdamId": app.id,
         ]
-        
-        if (volumeStore) {
-            payload["externalVersionId"] = versionID
-        } else {
-            payload["appExtVrsId"] = versionID
-        }
+        payload[endpoint.externalVersionIDKey] = versionID
 
         let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)
 

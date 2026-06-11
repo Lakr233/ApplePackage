@@ -26,9 +26,8 @@ struct Download: AsyncParsableCommand {
     @Option(help: "Version ID")
     var versionID: String?
 
-    @Option(help: "Platform to download for: iPhone, iPad, or AppleTV")
+    @Option(help: "Platform to download for: iPhone, iPad, or AppleTV (default: iPhone)")
     var platform: PlatformArgument?
-    
 
     @Option(help: "Output path")
     var output: String
@@ -36,7 +35,9 @@ struct Download: AsyncParsableCommand {
     func run() async throws {
         globalOptions.apply()
         let outputURL = try validateOutputURL(output)
-        let entityType = platform?.entityType ?? EntityType.iPhone
+        // The redownload fallback endpoint serves AppleTV builds when no
+        // platform-pinned version ID is provided, so always resolve one.
+        let entityType = platform?.entityType ?? .iPhone
 
         try await Configuration.withAccount(email: email) { account in
             try await Authenticator.rotatePasswordToken(for: &account)
