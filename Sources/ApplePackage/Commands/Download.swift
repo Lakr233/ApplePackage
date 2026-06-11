@@ -29,53 +29,29 @@ public enum Download {
         )
         defer { _ = client.shutdown() }
 
-        let request = try makeRequest(
-            account: account,
+        var result = try await requestProduct(
+            client: client,
+            account: &account,
             app: app,
             guid: deviceIdentifier,
-            externalVersionID: externalVersionID ?? ""
-        )
-        let response = try await client.execute(request: request).get()
-
-        APLogger.logResponse(
-            status: response.status.code,
-            headers: response.headers.map { ($0.name, $0.value) },
-            bodySize: response.body?.readableBytes
+            externalVersionID: externalVersionID ?? "",
+            endpoint: .volumeStore
         )
 
-        account.cookie.mergeCookies(response.cookies)
-
-        try ensure(response.status == .ok, Strings.requestFailed(status: response.status.code))
-
-        guard var body = response.body,
-              let data = body.readData(length: body.readableBytes)
-        else {
-            try ensureFailed(Strings.responseBodyEmpty)
+        if result == nil {
+            APLogger.debug("download: volumeStore rejected with 5002, retrying via redownload endpoint")
+            result = try await requestProduct(
+                client: client,
+                account: &account,
+                app: app,
+                guid: deviceIdentifier,
+                externalVersionID: externalVersionID ?? "",
+                endpoint: .redownload
+            )
         }
 
-        let plist = try PropertyListSerialization.propertyList(
-            from: data,
-            options: [],
-            format: nil
-        ) as? [String: Any]
-        guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
-
-        if let failureType = dict["failureType"] as? String {
-            let customerMessage = dict["customerMessage"] as? String
-            switch failureType {
-            case "2034", "2042":
-                try ensureFailed(Strings.passwordTokenExpired)
-            case "9610":
-                throw ApplePackageError.licenseRequired
-            default:
-                if customerMessage == Strings.passwordChanged {
-                    try ensureFailed(Strings.passwordTokenExpired)
-                }
-                if let customerMessage = customerMessage {
-                    try ensureFailed(customerMessage)
-                }
-                try ensureFailed("\(Strings.downloadFailed): \(failureType)")
-            }
+        guard let dict = result else {
+            try ensureFailed("\(Strings.downloadFailed): \(StoreDownloadEndpoint.retryableFailureType)")
         }
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
@@ -130,11 +106,78 @@ public enum Download {
         )
     }
 
+    /// Executes the download product request and parses the plist response.
+    /// Returns `nil` when the endpoint rejects the request with failureType 5002
+    /// so the caller can retry with the fallback endpoint.
+    private static func requestProduct(
+        client: HTTPClient,
+        account: inout Account,
+        app: Software,
+        guid: String,
+        externalVersionID: String,
+        endpoint: StoreDownloadEndpoint
+    ) async throws -> [String: Any]? {
+        let request = try makeRequest(
+            account: account,
+            app: app,
+            guid: guid,
+            externalVersionID: externalVersionID,
+            endpoint: endpoint
+        )
+        let response = try await client.execute(request: request).get()
+
+        APLogger.logResponse(
+            status: response.status.code,
+            headers: response.headers.map { ($0.name, $0.value) },
+            bodySize: response.body?.readableBytes
+        )
+
+        account.cookie.mergeCookies(response.cookies)
+
+        try ensure(response.status == .ok, Strings.requestFailed(status: response.status.code))
+
+        guard var body = response.body,
+              let data = body.readData(length: body.readableBytes)
+        else {
+            try ensureFailed(Strings.responseBodyEmpty)
+        }
+
+        let plist = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        ) as? [String: Any]
+        guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
+
+        if let failureType = dict["failureType"] as? String {
+            let customerMessage = dict["customerMessage"] as? String
+            switch failureType {
+            case "2034", "2042":
+                try ensureFailed(Strings.passwordTokenExpired)
+            case "9610":
+                throw ApplePackageError.licenseRequired
+            case StoreDownloadEndpoint.retryableFailureType:
+                return nil
+            default:
+                if customerMessage == Strings.passwordChanged {
+                    try ensureFailed(Strings.passwordTokenExpired)
+                }
+                if let customerMessage = customerMessage {
+                    try ensureFailed(customerMessage)
+                }
+                try ensureFailed("\(Strings.downloadFailed): \(failureType)")
+            }
+        }
+
+        return dict
+    }
+
     private static func makeRequest(
         account: Account,
         app: Software,
         guid: String,
-        externalVersionID: String
+        externalVersionID: String,
+        endpoint: StoreDownloadEndpoint
     ) throws -> HTTPClient.Request {
         var payload: [String: Any] = [
             "creditDisplay": "",
@@ -143,7 +186,7 @@ public enum Download {
         ]
 
         if !externalVersionID.isEmpty {
-            payload["externalVersionId"] = externalVersionID
+            payload[endpoint.externalVersionIDKey] = externalVersionID
         }
 
         let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)
@@ -155,17 +198,16 @@ public enum Download {
             ("X-Dsid", account.directoryServicesIdentifier),
         ]
 
-        let host = Configuration.storeAPIHost(pod: account.pod)
-        let urlString = "https://\(host)/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
+        let url = try endpoint.url(pod: account.pod, deviceIdentifier: nil)
 
-        for item in account.cookie.buildCookieHeader(URL(string: urlString)!) {
+        for item in account.cookie.buildCookieHeader(url) {
             headers.append(item)
         }
 
-        APLogger.logRequest(method: "POST", url: urlString, headers: headers)
+        APLogger.logRequest(method: "POST", url: url.absoluteString, headers: headers)
 
         return try .init(
-            url: urlString,
+            url: url.absoluteString,
             method: .POST,
             headers: .init(headers),
             body: .data(data)

@@ -48,7 +48,73 @@ public enum VersionFinder {
 
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        var currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod)
+        var dict = try await fetchProduct(
+            client: client,
+            account: &account,
+            app: app,
+            deviceIdentifier: deviceIdentifier,
+            externalVersionID: resolvedExternalVersionID,
+            endpoint: .volumeStore
+        )
+
+        if dict["failureType"] as? String == StoreDownloadEndpoint.retryableFailureType {
+            APLogger.debug("versionFinder: volumeStore rejected with 5002, retrying via redownload endpoint")
+            dict = try await fetchProduct(
+                client: client,
+                account: &account,
+                app: app,
+                deviceIdentifier: deviceIdentifier,
+                externalVersionID: resolvedExternalVersionID,
+                endpoint: .redownload
+            )
+        }
+
+        guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
+            if let failureType = dict["failureType"] as? String {
+                let customerMessage = dict["customerMessage"] as? String
+                switch failureType {
+                case "2034", "2042":
+                    try ensureFailed(Strings.passwordTokenExpired)
+                case "9610":
+                    throw ApplePackageError.licenseRequired
+                default:
+                    if customerMessage == Strings.passwordChanged {
+                        try ensureFailed(Strings.passwordTokenExpired)
+                    }
+                    if let customerMessage = customerMessage {
+                        try ensureFailed(customerMessage)
+                    }
+                    try ensureFailed(Strings.noItemsInResponse)
+                }
+            } else {
+                try ensureFailed(Strings.noItemsInResponse)
+            }
+        }
+
+        let item = items[0]
+        guard let metadata = item["metadata"] as? [String: Any],
+              let identifiers = metadata["softwareVersionExternalIdentifiers"] as? [Any]
+        else {
+            try ensureFailed(Strings.missingVersionIdentifiers)
+        }
+
+        let result = identifiers.map { "\($0)" }
+        try ensure(!result.isEmpty, Strings.noVersionsFound)
+
+        return result
+    }
+
+    /// Runs the product request against the given endpoint, following pod
+    /// redirects, and returns the parsed plist response.
+    private static func fetchProduct(
+        client: HTTPClient,
+        account: inout Account,
+        app: Software,
+        deviceIdentifier: String,
+        externalVersionID: String,
+        endpoint: StoreDownloadEndpoint
+    ) async throws -> [String: Any] {
+        var currentURL = try endpoint.url(pod: account.pod, deviceIdentifier: deviceIdentifier)
         var redirectAttempt = 0
         var finalResponse: HTTPClient.Response?
         let maxRedirects = 3
@@ -59,7 +125,8 @@ public enum VersionFinder {
                 app: app,
                 url: currentURL,
                 guid: deviceIdentifier,
-                externalVersionID: resolvedExternalVersionID
+                externalVersionID: externalVersionID,
+                endpoint: endpoint
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -102,48 +169,7 @@ public enum VersionFinder {
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
-        guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
-            if let failureType = dict["failureType"] as? String {
-                let customerMessage = dict["customerMessage"] as? String
-                switch failureType {
-                case "2034", "2042":
-                    try ensureFailed(Strings.passwordTokenExpired)
-                case "9610":
-                    throw ApplePackageError.licenseRequired
-                default:
-                    if customerMessage == Strings.passwordChanged {
-                        try ensureFailed(Strings.passwordTokenExpired)
-                    }
-                    if let customerMessage = customerMessage {
-                        try ensureFailed(customerMessage)
-                    }
-                    try ensureFailed(Strings.noItemsInResponse)
-                }
-            } else {
-                try ensureFailed(Strings.noItemsInResponse)
-            }
-        }
-
-        let item = items[0]
-        guard let metadata = item["metadata"] as? [String: Any],
-              let identifiers = metadata["softwareVersionExternalIdentifiers"] as? [Any]
-        else {
-            try ensureFailed(Strings.missingVersionIdentifiers)
-        }
-
-        let result = identifiers.map { "\($0)" }
-        try ensure(!result.isEmpty, Strings.noVersionsFound)
-
-        return result
-    }
-
-    private static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
-        var comps = URLComponents()
-        comps.scheme = "https"
-        comps.host = Configuration.storeAPIHost(pod: pod)
-        comps.path = "/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
-        comps.queryItems = [URLQueryItem(name: "guid", value: deviceIdentifier)]
-        return try comps.url.get()
+        return dict
     }
 
     private static func makeRequest(
@@ -151,7 +177,8 @@ public enum VersionFinder {
         app: Software,
         url: URL,
         guid: String,
-        externalVersionID: String
+        externalVersionID: String,
+        endpoint: StoreDownloadEndpoint
     ) throws -> HTTPClient.Request {
         var payload: [String: Any] = [
             "creditDisplay": "",
@@ -160,7 +187,7 @@ public enum VersionFinder {
         ]
 
         if !externalVersionID.isEmpty {
-            payload["externalVersionId"] = externalVersionID
+            payload[endpoint.externalVersionIDKey] = externalVersionID
         }
 
         let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)

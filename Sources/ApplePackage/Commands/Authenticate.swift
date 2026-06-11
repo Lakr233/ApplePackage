@@ -7,6 +7,7 @@
 
 import AsyncHTTPClient
 import Foundation
+import NIOHTTP1
 
 public enum Authenticator {
     private enum LoginResponse {
@@ -186,7 +187,8 @@ public enum Authenticator {
             APLogger.info("auth: received pod value: \(podValue)")
         }
 
-        if response.status == .found {
+        let redirectStatuses: [HTTPResponseStatus] = [.movedPermanently, .found, .seeOther, .temporaryRedirect, .permanentRedirect]
+        if redirectStatuses.contains(response.status) {
             guard let location = response.headers.first(name: "location"),
                   let url = URL(string: location)
             else {

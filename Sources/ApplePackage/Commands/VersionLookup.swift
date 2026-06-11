@@ -29,7 +29,60 @@ public enum VersionLookup {
 
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        var currentURL = try createInitialRequestEndpoint(deviceIdentifier: deviceIdentifier, pod: account.pod)
+        var dict = try await fetchProduct(
+            client: client,
+            account: &account,
+            app: app,
+            deviceIdentifier: deviceIdentifier,
+            versionID: versionID,
+            endpoint: .volumeStore
+        )
+
+        if dict["failureType"] as? String == StoreDownloadEndpoint.retryableFailureType {
+            APLogger.debug("versionLookup: volumeStore rejected with 5002, retrying via redownload endpoint")
+            dict = try await fetchProduct(
+                client: client,
+                account: &account,
+                app: app,
+                deviceIdentifier: deviceIdentifier,
+                versionID: versionID,
+                endpoint: .redownload
+            )
+        }
+
+        guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
+            try ensureFailed(Strings.noItemsInResponse)
+        }
+
+        let item = items[0]
+        guard let metadata = item["metadata"] as? [String: Any] else {
+            try ensureFailed(Strings.missingMetadata)
+        }
+
+        guard let bundleShortVersionString = metadata["bundleShortVersionString"] as? String else {
+            try ensureFailed(Strings.missingBundleShortVersionString)
+        }
+
+        guard let releaseDateString = metadata["releaseDate"] as? String,
+              let releaseDate = ISO8601DateFormatter().date(from: releaseDateString)
+        else {
+            try ensureFailed(Strings.missingOrInvalidReleaseDate)
+        }
+
+        return VersionMetadata(displayVersion: bundleShortVersionString, releaseDate: releaseDate)
+    }
+
+    /// Runs the product request against the given endpoint, following pod
+    /// redirects, and returns the parsed plist response.
+    private static func fetchProduct(
+        client: HTTPClient,
+        account: inout Account,
+        app: Software,
+        deviceIdentifier: String,
+        versionID: String,
+        endpoint: StoreDownloadEndpoint
+    ) async throws -> [String: Any] {
+        var currentURL = try endpoint.url(pod: account.pod, deviceIdentifier: deviceIdentifier)
         var redirectAttempt = 0
         var finalResponse: HTTPClient.Response?
         let maxRedirects = 3
@@ -40,7 +93,8 @@ public enum VersionLookup {
                 app: app,
                 url: currentURL,
                 guid: deviceIdentifier,
-                versionID: versionID
+                versionID: versionID,
+                endpoint: endpoint
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -83,35 +137,7 @@ public enum VersionLookup {
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
-        guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
-            try ensureFailed(Strings.noItemsInResponse)
-        }
-
-        let item = items[0]
-        guard let metadata = item["metadata"] as? [String: Any] else {
-            try ensureFailed(Strings.missingMetadata)
-        }
-
-        guard let bundleShortVersionString = metadata["bundleShortVersionString"] as? String else {
-            try ensureFailed(Strings.missingBundleShortVersionString)
-        }
-
-        guard let releaseDateString = metadata["releaseDate"] as? String,
-              let releaseDate = ISO8601DateFormatter().date(from: releaseDateString)
-        else {
-            try ensureFailed(Strings.missingOrInvalidReleaseDate)
-        }
-
-        return VersionMetadata(displayVersion: bundleShortVersionString, releaseDate: releaseDate)
-    }
-
-    private static func createInitialRequestEndpoint(deviceIdentifier: String, pod: String?) throws -> URL {
-        var comps = URLComponents()
-        comps.scheme = "https"
-        comps.host = Configuration.storeAPIHost(pod: pod)
-        comps.path = "/WebObjects/MZFinance.woa/wa/volumeStoreDownloadProduct"
-        comps.queryItems = [URLQueryItem(name: "guid", value: deviceIdentifier)]
-        return try comps.url.get()
+        return dict
     }
 
     private static func makeRequest(
@@ -119,14 +145,15 @@ public enum VersionLookup {
         app: Software,
         url: URL,
         guid: String,
-        versionID: String
+        versionID: String,
+        endpoint: StoreDownloadEndpoint
     ) throws -> HTTPClient.Request {
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "creditDisplay": "",
             "guid": guid,
             "salableAdamId": app.id,
-            "externalVersionId": versionID,
         ]
+        payload[endpoint.externalVersionIDKey] = versionID
 
         let data = try PropertyListSerialization.data(fromPropertyList: payload, format: .xml, options: 0)
 
