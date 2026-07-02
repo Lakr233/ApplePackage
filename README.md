@@ -137,3 +137,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Disclaimer
 
 This tool is for educational and personal use only. Please respect Apple's terms of service and copyright laws when using this software. We are not responsible if your Apple account gets banned or any other issues arise from using this tool.
+
+<img src="./Artworks/fable5.jpg" alt="Fable 5 Verified" width="240">
