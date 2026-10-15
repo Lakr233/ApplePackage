@@ -11,9 +11,18 @@ import Foundation
 public enum Bag {
     public struct BagOutput {
         public var authEndpoint: URL
+        public var sap: SAPConfiguration = Bag.defaultSAPConfiguration
     }
 
-    private static let defaultAuthEndpoint = "https://auth.itunes.apple.com/auth/v1/native/fast/"
+    private static let defaultAuthEndpoint = "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate/"
+
+    /// Values advertised by init.itunes.apple.com/bag.xml as of 2026-10, used
+    /// only when the bag cannot be fetched or parsed.
+    static let defaultSAPConfiguration = SAPConfiguration(
+        setupURL: URL(string: "https://fpinit.itunes.apple.com/v1/signSapSetup/legacy")!,
+        certificateURL: URL(string: "https://s.mzstatic.com/sap/setupCert.plist")!,
+        version: SAPConfiguration.supportedVersion
+    )
 
     public static func fetchBag() async throws -> BagOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
@@ -83,15 +92,32 @@ public enum Bag {
         }
 
         APLogger.info("bag: auth endpoint resolved to \(authURL)")
-        return BagOutput(authEndpoint: authURL)
+        return BagOutput(authEndpoint: authURL, sap: sapConfiguration(from: plist, urlBag: urlBag))
     }
 
-    /// The bag advertises the native auth endpoint without the `/fast/` sub-path
-    /// that the login flow requires; the no-trailing-slash variant 301s to an
-    /// HTML page. Legacy endpoints pass through unchanged.
+    private static func sapConfiguration(from plist: [String: Any], urlBag: [String: Any]) -> SAPConfiguration {
+        func value(_ key: String) -> Any? { urlBag[key] ?? plist[key] }
+        guard let setup = (value("sign-sap-setup") as? String).flatMap(URL.init(string:)),
+              let certificate = (value("sign-sap-setup-cert") as? String).flatMap(URL.init(string:)),
+              setup.scheme == "https", certificate.scheme == "https"
+        else {
+            APLogger.debug("bag: no SAP configuration in plist, using defaults")
+            return defaultSAPConfiguration
+        }
+        let version = (value("sign-sap-version") as? String).flatMap(UInt32.init)
+            ?? (value("sign-sap-version") as? Int).map(UInt32.init)
+            ?? SAPConfiguration.supportedVersion
+        return SAPConfiguration(setupURL: setup, certificateURL: certificate, version: version)
+    }
+
+    /// The bag advertises auth endpoints without the trailing slash the login
+    /// flow requires: the bare `authenticate` path can answer 301 without a
+    /// Location, and the native endpoint additionally needs the `/fast/` sub-path.
     private static func normalizedAuthEndpoint(from urlString: String) -> URL? {
         guard var comps = URLComponents(string: urlString) else { return nil }
-        if comps.host == "auth.itunes.apple.com" {
+        if comps.path.hasSuffix("/wa/authenticate") {
+            comps.path += "/"
+        } else if comps.host == "auth.itunes.apple.com" {
             var path = comps.path
             while path.hasSuffix("/") {
                 path.removeLast()

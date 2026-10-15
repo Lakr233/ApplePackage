@@ -27,14 +27,15 @@ public enum Download {
 
         if let failureType = dict["failureType"] as? String {
             let customerMessage = dict["customerMessage"] as? String
+            APLogger.info("download: failureType=\(failureType) customerMessage=\(customerMessage ?? "-")")
             switch failureType {
             case "2034", "2042":
-                try ensureFailed(Strings.passwordTokenExpired)
+                try ensureFailed("\(Strings.passwordTokenExpired) (failureType: \(failureType))")
             case "9610":
                 throw ApplePackageError.licenseRequired
             default:
                 if customerMessage == Strings.passwordChanged {
-                    try ensureFailed(Strings.passwordTokenExpired)
+                    try ensureFailed("\(Strings.passwordTokenExpired) (failureType: \(failureType), \(customerMessage ?? ""))")
                 }
                 if let customerMessage = customerMessage {
                     try ensureFailed(customerMessage)
@@ -44,6 +45,7 @@ public enum Download {
         }
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
+            APLogger.info("download: no items, response keys: \(dict.keys.sorted())")
             try ensureFailed(Strings.noItemsInResponse)
         }
 

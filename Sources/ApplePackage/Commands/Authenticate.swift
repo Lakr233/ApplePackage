@@ -27,6 +27,7 @@ public enum Authenticator {
         let deviceIdentifier = Configuration.deviceIdentifier
 
         let bagOutput = try await Bag.fetchBag()
+        let signer = try await Configuration.makeActionSigner(configuration: bagOutput.sap)
 
         let client = Configuration.makeHTTPClient(redirectConfiguration: .disallow)
         defer { _ = client.shutdown() }
@@ -47,12 +48,16 @@ public enum Authenticator {
                     email: email,
                     password: password,
                     code: code,
+                    attempt: currentAttempt,
                     cookies: cookies,
-                    deviceIdentifier: deviceIdentifier
+                    deviceIdentifier: deviceIdentifier,
+                    signer: signer
                 )
                 let response = try await client.execute(request: request).get()
                 let result = try parseResponse(
                     response,
+                    endpoint: requestEndpoint,
+                    attempt: currentAttempt,
                     email: email,
                     password: password,
                     code: code,
@@ -113,14 +118,16 @@ public enum Authenticator {
         email: String,
         password: String,
         code: String,
+        attempt: Int,
         cookies: [Cookie],
-        deviceIdentifier: String
+        deviceIdentifier: String,
+        signer: ActionSigner
     ) throws -> HTTPClient.Request {
         let parameters: [String: String] = [
             "appleId": email,
-            "attempt": "\(code.isEmpty ? "4" : "2")",
+            "attempt": "\(attempt)",
             "guid": deviceIdentifier,
-            "password": "\(password)\(code)",
+            "password": "\(password)\(code.filter { !$0.isWhitespace })",
             "rmp": "0",
             "why": "signIn",
         ]
@@ -129,14 +136,19 @@ public enum Authenticator {
             format: .xml,
             options: 0
         )
+        // The body is a plist, but the signed endpoint expects this content type.
         var headers: [(String, String)] = [
             ("User-Agent", Configuration.userAgent),
-            ("Content-Type", "application/x-apple-plist"),
+            ("Content-Type", "application/x-www-form-urlencoded"),
         ]
+        if let storeFront = phoneNumberStoreFront(for: email) {
+            headers.append(("X-Apple-Store-Front", storeFront))
+        }
         for item in cookies.buildCookieHeader(endpoint) {
             headers.append(item)
         }
         APLogger.logRequest(method: "POST", url: endpoint.absoluteString, headers: headers)
+        headers.append((ActionSignerHeader.name, try signer.sign(data).base64EncodedString()))
         return try .init(
             url: endpoint.absoluteString,
             method: .POST,
@@ -145,8 +157,45 @@ public enum Authenticator {
         )
     }
 
+    /// Phone-number Apple IDs sign in only when the request names their storefront.
+    /// Mirrors ipatool's detection of mainland China and India numbers.
+    static func phoneNumberStoreFront(for appleID: String) -> String? {
+        var number = appleID.trimmingCharacters(in: .whitespaces).filter { $0 != " " && $0 != "-" }
+        var international = false
+        if number.hasPrefix("+") {
+            international = true
+            number.removeFirst()
+        } else if number.hasPrefix("00") {
+            international = true
+            number.removeFirst(2)
+        }
+        guard !number.isEmpty, number.allSatisfy({ ("0" ... "9").contains($0) }) else { return nil }
+
+        // Check the full length before removing a country code: a local Indian
+        // number can itself start with 91.
+        if number.count == 13, number.hasPrefix("861") {
+            return Configuration.storeId(for: "CN")
+        } else if number.count == 12, number.hasPrefix("91") {
+            number.removeFirst(2)
+        } else if international {
+            return nil
+        }
+        if number.count == 11, number.hasPrefix("1") {
+            return Configuration.storeId(for: "CN")
+        }
+        if !international, number.count == 11, number.hasPrefix("0") {
+            number.removeFirst()
+        }
+        if number.count == 10, let first = number.first, ("6" ... "9").contains(first) {
+            return Configuration.storeId(for: "IN")
+        }
+        return nil
+    }
+
     private static func parseResponse(
         _ response: HTTPClient.Response,
+        endpoint: URL,
+        attempt: Int,
         email: String,
         password: String,
         code: String,
@@ -180,7 +229,7 @@ public enum Authenticator {
         let redirectStatuses: [HTTPResponseStatus] = [.movedPermanently, .found, .seeOther, .temporaryRedirect, .permanentRedirect]
         if redirectStatuses.contains(response.status) {
             guard let location = response.headers.first(name: "location"),
-                  let url = URL(string: location)
+                  let url = URL(string: location, relativeTo: endpoint)?.absoluteURL
             else {
                 return .failure(Strings.failedToRetrieveRedirect)
             }
@@ -193,12 +242,20 @@ public enum Authenticator {
             return .failure("response body is empty (code: \(response.status.code))")
         }
 
-        let listItem = try PropertyListSerialization.propertyList(
+        guard let listItem = try? PropertyListSerialization.propertyList(
             from: data,
             options: [],
             format: nil
-        )
+        ) else {
+            // Rejected requests (e.g. a missing or invalid signature) get an HTML page.
+            return .failure("\(Strings.authRejected) (HTTP \(response.status.code))")
+        }
         let dic = try (listItem as? [String: Any]).get(Strings.responseNotDictionary)
+
+        // Like ipatool, retry an invalid-credentials (-5000) answer to the first attempt once.
+        if attempt == 1, let failureType = dic["failureType"] as? String, failureType == "-5000" {
+            return .retry
+        }
 
         if let failureType = dic["failureType"] as? String,
            failureType.isEmpty,

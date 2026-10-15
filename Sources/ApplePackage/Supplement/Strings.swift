@@ -15,6 +15,15 @@ public enum Strings {
     static let authFailedUnknown = "authentication failed for an unknown reason"
     static let invalid2FACode = "invalid or expired 2FA code (failureType: 5005)"
     static let invalidAuthEndpoint = "invalid auth endpoint URL"
+    static let authRejected = "Apple rejected the sign-in request; try again later or from another network"
+
+    // MARK: - Request Signing
+
+    static let sapUnavailable = "request signing (FairPlay SAP) is not available on this platform"
+    static let sapUnsupportedVersion = "unsupported SAP version"
+    static let sapInvalidHardwareID = "device identifier must be 1-20 bytes of hex"
+    static let sapSetupFailed = "request signing setup failed"
+    static let sapSignFailed = "request signing failed"
 
     // MARK: - Token / Session
 

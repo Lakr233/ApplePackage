@@ -7,11 +7,14 @@
 
 import AsyncHTTPClient
 import Foundation
+import NIOHTTP1
 
 extension StoreDownloadEndpoint {
-    /// Fetches the product info from the volumeStore endpoint, transparently
-    /// retrying via the redownload endpoint when Apple rejects the request
-    /// with failureType 5002.
+    /// Fetches the product info from the volumeStore endpoint, falling back to
+    /// the dispatch endpoints the way ipatool does: redownload when volumeStore
+    /// rejects the request (5002), returns no items, or reports the item as no
+    /// longer available; then updateProduct for a pinned version redownload
+    /// answers with an empty HTTP 500 or the same availability message.
     static func fetchProductWithFallback(
         client: HTTPClient,
         account: inout Account,
@@ -19,7 +22,7 @@ extension StoreDownloadEndpoint {
         deviceIdentifier: String,
         externalVersionID: String
     ) async throws -> [String: Any] {
-        var dict = try await StoreDownloadEndpoint.volumeStore.fetchProduct(
+        let dict = try await StoreDownloadEndpoint.volumeStore.fetchProduct(
             client: client,
             account: &account,
             app: app,
@@ -27,22 +30,89 @@ extension StoreDownloadEndpoint {
             externalVersionID: externalVersionID
         )
 
-        if dict["failureType"] as? String == retryableFailureType {
-            APLogger.debug("store: volumeStore rejected with 5002, retrying via redownload endpoint")
-            dict = try await StoreDownloadEndpoint.redownload.fetchProduct(
+        let failureType = dict["failureType"] as? String
+        guard failureType == retryableFailureType || isEmpty(dict) || isUnavailable(dict) else {
+            return dict
+        }
+        APLogger.info("store: volumeStore answered without items (failureType: \(failureType ?? "-")), trying redownload")
+
+        // An unpinned redownload can fail or return another platform's build,
+        // so select the current iOS version first.
+        var versionID = externalVersionID
+        if versionID.isEmpty {
+            guard let resolved = await latestExternalVersionID(account: account, app: app) else {
+                return dict
+            }
+            versionID = resolved
+        }
+
+        let redownload = try await StoreDownloadEndpoint.redownload.send(
+            client: client,
+            account: &account,
+            app: app,
+            deviceIdentifier: deviceIdentifier,
+            externalVersionID: versionID
+        )
+        let redownloadEmpty500 = redownload.status == .internalServerError && redownload.dict == nil
+        if redownloadEmpty500 || redownload.dict.map(isUnavailable) == true {
+            APLogger.info("store: redownload cannot serve version \(versionID), trying updateProduct")
+            let update = try await StoreDownloadEndpoint.update.send(
                 client: client,
                 account: &account,
                 app: app,
                 deviceIdentifier: deviceIdentifier,
-                externalVersionID: externalVersionID
+                externalVersionID: versionID
             )
+            return try update.validated()
         }
-
-        return dict
+        return try redownload.validated()
     }
 
-    /// Runs the product request against this endpoint, following pod redirects,
-    /// and returns the parsed plist response.
+    /// No failure, no message, no items: volumeStore's silent refusal.
+    private static func isEmpty(_ dict: [String: Any]) -> Bool {
+        (dict["failureType"] as? String ?? "").isEmpty
+            && (dict["customerMessage"] as? String ?? "").isEmpty
+            && ((dict["songList"] as? [Any])?.isEmpty ?? true)
+    }
+
+    /// The message-only "No Longer Available" answer; other messages keep
+    /// their normal error handling.
+    private static func isUnavailable(_ dict: [String: Any]) -> Bool {
+        let message = (dict["customerMessage"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return (dict["failureType"] as? String ?? "").isEmpty
+            && ((dict["songList"] as? [Any])?.isEmpty ?? true)
+            && (message == "no longer available" || message.hasSuffix(" no longer available"))
+    }
+
+    private static func latestExternalVersionID(account: Account, app: Software) async -> String? {
+        guard let countryCode = Configuration.countryCode(for: account.store) else { return nil }
+        for entityType in [EntityType.iPhone, .iPad] {
+            if let metadata = try? await PlatformVersionLookup.lookup(
+                appID: app.id,
+                countryCode: countryCode,
+                entityType: entityType
+            ) {
+                return metadata.externalVersionID
+            }
+        }
+        APLogger.info("store: unable to resolve the latest version of \(app.id) for redownload")
+        return nil
+    }
+
+    private struct ProductResponse {
+        var status: HTTPResponseStatus
+        var dict: [String: Any]?
+
+        func validated() throws -> [String: Any] {
+            try ensure(status == .ok, Strings.requestFailed(status: status.code))
+            guard let dict else { try ensureFailed(Strings.invalidResponse) }
+            return dict
+        }
+    }
+
+    /// Runs the product request against this endpoint and requires an HTTP 200 plist.
     func fetchProduct(
         client: HTTPClient,
         account: inout Account,
@@ -50,6 +120,24 @@ extension StoreDownloadEndpoint {
         deviceIdentifier: String,
         externalVersionID: String
     ) async throws -> [String: Any] {
+        try await send(
+            client: client,
+            account: &account,
+            app: app,
+            deviceIdentifier: deviceIdentifier,
+            externalVersionID: externalVersionID
+        ).validated()
+    }
+
+    /// Runs the product request against this endpoint, following pod redirects,
+    /// and returns the status with the parsed plist, if any.
+    private func send(
+        client: HTTPClient,
+        account: inout Account,
+        app: Software,
+        deviceIdentifier: String,
+        externalVersionID: String
+    ) async throws -> ProductResponse {
         var currentURL = try url(pod: account.pod, deviceIdentifier: deviceIdentifier)
         var redirectAttempt = 0
         var finalResponse: HTTPClient.Response?
@@ -89,22 +177,19 @@ extension StoreDownloadEndpoint {
 
         guard let finalResponse else { try ensureFailed(Strings.noResponseReceived) }
 
-        try ensure(finalResponse.status == .ok, Strings.requestFailed(status: finalResponse.status.code))
-
         guard var body = finalResponse.body,
-              let data = body.readData(length: body.readableBytes)
+              let data = body.readData(length: body.readableBytes),
+              !data.isEmpty
         else {
-            try ensureFailed(Strings.responseBodyEmpty)
+            return ProductResponse(status: finalResponse.status, dict: nil)
         }
 
-        let plist = try PropertyListSerialization.propertyList(
+        let plist = try? PropertyListSerialization.propertyList(
             from: data,
             options: [],
             format: nil
         ) as? [String: Any]
-        guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
-
-        return dict
+        return ProductResponse(status: finalResponse.status, dict: plist)
     }
 
     private func makeRequest(
@@ -118,6 +203,7 @@ extension StoreDownloadEndpoint {
             "creditDisplay": "",
             "guid": guid,
             "salableAdamId": app.id,
+            "serialNumber": "0",
         ]
 
         if !externalVersionID.isEmpty {

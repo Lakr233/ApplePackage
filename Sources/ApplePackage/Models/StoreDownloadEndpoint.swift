@@ -8,11 +8,14 @@
 import Foundation
 
 /// MZFinance product download endpoints. `volumeStore` is the primary endpoint,
-/// but Apple intermittently rejects it with failureType 5002; the legacy
-/// `redownload` dispatch endpoint serves the same payload and is used as fallback.
+/// but Apple intermittently rejects it (failureType 5002) or answers with no
+/// items; the `redownload` dispatch endpoint serves the same payload and is used
+/// as fallback, and `update` covers pinned versions redownload cannot serve.
+/// The fallback chain mirrors ipatool's sendDownloadProduct.
 enum StoreDownloadEndpoint {
     case volumeStore
     case redownload
+    case update
 
     /// The failureType returned by `volumeStore` that signals callers to retry
     /// with the `redownload` endpoint.
@@ -23,7 +26,7 @@ enum StoreDownloadEndpoint {
         switch self {
         case .volumeStore:
             return "externalVersionId"
-        case .redownload:
+        case .redownload, .update:
             return "appExtVrsId"
         }
     }
@@ -38,6 +41,9 @@ enum StoreDownloadEndpoint {
         case .redownload:
             comps.host = "downloaddispatch.itunes.apple.com"
             comps.path = "/r/redownload"
+        case .update:
+            comps.host = "downloaddispatch.itunes.apple.com"
+            comps.path = "/up/updateProduct"
         }
         if let deviceIdentifier {
             comps.queryItems = [URLQueryItem(name: "guid", value: deviceIdentifier)]
