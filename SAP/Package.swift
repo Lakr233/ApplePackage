@@ -1,9 +1,9 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
     name: "AppleSAP",
-    platforms: [.macOS(.v11), .iOS(.v15), .macCatalyst(.v14)],
+    platforms: [.macOS(.v15), .iOS(.v18), .macCatalyst(.v18), .tvOS(.v18), .visionOS(.v2)],
     products: [
         .library(name: "AppleSAPKit", targets: ["AppleSAPKit"]),
         .executable(name: "AppleSAPTool", targets: ["AppleSAPTool"]),
@@ -21,5 +21,6 @@ let package = Package(
             "AppleSAPKit", .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ]),
         .testTarget(name: "AppleSAPKitTests", dependencies: ["AppleSAPKit"]),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )

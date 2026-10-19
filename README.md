@@ -15,8 +15,9 @@ For a version with a graphical user interface (GUI) and an on-device installer, 
 
 ### Prerequisites
 
-- Swift 5.9 or later
-- macOS 12+
+- Swift 6.2 or later
+- macOS 15+
+- Library deployment targets: iOS 18+, Mac Catalyst 18+, tvOS 18+, visionOS 2+
 
 ### Using Swift Run
 

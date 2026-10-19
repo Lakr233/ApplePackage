@@ -119,8 +119,13 @@ struct SAPCipher: Sendable {
             Self.carry(carryFrames[1], block: masked, offset: 4, firstMask: 0x26),
             Self.carry(carryFrames[2], block: masked, offset: 8, firstMask: 0x28),
         ]
-        let expanded = (0 ..< 17).map { position in
-            UInt8(((Int(masked[(3 + 7 * position) % 16] ^ 0x2D) + position) & 255) ^ 0x2D)
+        var expanded = [UInt8]()
+        expanded.reserveCapacity(17)
+        for position in 0 ..< 17 {
+            let sourcePosition: Int = (3 + 7 * position) % 16
+            let unmasked: UInt8 = masked[sourcePosition] ^ 0x2D
+            let incremented: UInt8 = UInt8((Int(unmasked) + position) & 255)
+            expanded.append(incremented ^ 0x2D)
         }
         var slices = [[UInt8]](repeating: [], count: 9)
         slices[0] = expanded

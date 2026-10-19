@@ -6,6 +6,7 @@ import NIOSSL
 import XCTest
 
 /// Explicitly opt-in transport observations, not a signature-acceptance test.
+@MainActor
 final class SAPLiveProbeTests: XCTestCase {
     private enum ProbeError: Error {
         case unapprovedEndpoint
@@ -20,11 +21,24 @@ final class SAPLiveProbeTests: XCTestCase {
         let status: UInt
         let redirects: Int
         let locationPresent: Bool
+        let bodyBytes: Int
+        let contentType: String?
+        let errorHeaders: [String: [String]]
         let responseKind: String
         let failureType: String?
         let customerMessage: String?
         let explanation: String?
     }
+
+    // Only explicit error/status fields are printable; never collect the
+    // signature itself, SAP payload/cookie headers, or arbitrary headers.
+    private let diagnosticHeaders: Set<String> = [
+        "x-apple-sap-error", "x-apple-sap-error-code", "x-apple-sap-error-message",
+        "x-apple-sap-status", "x-apple-signature-error", "x-apple-signature-error-code",
+        "x-apple-signature-error-message", "x-apple-actionsignature-error",
+        "x-apple-actionsignature-error-code", "x-apple-actionsignature-error-message",
+        "x-apple-action-signature-error", "x-apple-action-signature-error-code",
+    ]
 
     private func approved(_ url: URL) throws -> URL {
         guard url.scheme?.lowercased() == "https",
@@ -79,9 +93,18 @@ final class SAPLiveProbeTests: XCTestCase {
 
         // Bag redirects are disabled; authenticated redirects are bounded and
         // revalidated before any body/signature can be sent to another URL.
-        let bag = try await Bag.fetchBag(redirectConfiguration: .disallow)
-        var components = try XCTUnwrap(URLComponents(url: approved(bag.authEndpoint), resolvingAgainstBaseURL: true))
-        components.queryItems = [URLQueryItem(name: "guid", value: identifier)]
+        let selectedEndpoint: URL
+        if let text = environment["APPLEPACKAGE_SAP_PROBE_ENDPOINT"], !text.isEmpty {
+            selectedEndpoint = try approved(XCTUnwrap(URL(string: text)))
+        } else {
+            let bag = try await Bag.fetchBag(redirectConfiguration: .disallow)
+            selectedEndpoint = try approved(bag.authEndpoint)
+        }
+        var components = try XCTUnwrap(URLComponents(url: selectedEndpoint, resolvingAgainstBaseURL: true))
+        var query = components.queryItems ?? []
+        query.removeAll { $0.name == "guid" }
+        query.append(URLQueryItem(name: "guid", value: identifier))
+        components.queryItems = query
         let initial = try approved(XCTUnwrap(components.url))
         let email = "\(UUID().uuidString)@example.invalid"
         let password = UUID().uuidString
@@ -130,9 +153,18 @@ final class SAPLiveProbeTests: XCTestCase {
                 let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
                 let fields = plist ?? json ?? [:]
                 let secrets = [email, password, signature]
+                var errorHeaders: [String: [String]] = [:]
+                for header in response.headers {
+                    let name = header.name.lowercased()
+                    if diagnosticHeaders.contains(name), let value = sanitized(header.value, secrets: secrets) {
+                        errorHeaders[name, default: []].append(value)
+                    }
+                }
                 let summary = Summary(
                     variant: variant, endpoint: endpointDescription(endpoint), status: response.status.code,
                     redirects: redirects, locationPresent: response.headers.first(name: "location") != nil,
+                    bodyBytes: data.count, contentType: sanitized(response.headers.first(name: "content-type"), secrets: secrets),
+                    errorHeaders: errorHeaders,
                     responseKind: plist != nil ? "plist" : json != nil ? "json" : "other",
                     failureType: sanitized(fields["failureType"], secrets: secrets),
                     customerMessage: sanitized(fields["customerMessage"], secrets: secrets),
@@ -143,11 +175,29 @@ final class SAPLiveProbeTests: XCTestCase {
                 break
             }
         }
-        let fingerprints = summaries.map { "\($0.status)|\($0.failureType ?? "")|\($0.customerMessage ?? "")|\($0.explanation ?? "")" }
-        let observation = summaries.count == 3 && Set(fingerprints).count == 1
-            ? "signed, unsigned and corrupted responses are indistinguishable"
-            : "transport observations only; inspect explicit server fields"
-        let conclusion = ["observation": observation, "signature_acceptance": "not independently established by this probe"]
+        let fingerprints = try summaries.map { summary in
+            let errors = String(decoding: try encoder.encode(summary.errorHeaders), as: UTF8.self)
+            return "\(summary.status)|\(summary.bodyBytes)|\(summary.contentType ?? "")|\(summary.failureType ?? "")|\(summary.customerMessage ?? "")|\(summary.explanation ?? "")|\(errors)"
+        }
+        let signed = summaries.first { $0.variant == "signed" }
+        let unsigned = summaries.first { $0.variant == "unsigned" }
+        let corrupted = summaries.first { $0.variant == "corrupted" }
+        let positiveControl = summaries.count == 3 && signed?.status == 200 && signed?.responseKind == "plist" &&
+            signed?.failureType == "" && signed?.customerMessage == "MZFinance.BadLogin.Configurator_message" &&
+            unsigned?.status == 403 && corrupted?.status == 403 &&
+            signed?.endpoint == unsigned?.endpoint && signed?.endpoint == corrupted?.endpoint
+        let observation = positiveControl
+            ? "signed request reached business authentication; unsigned and corrupted controls were rejected"
+            : summaries.count == 3 && Set(fingerprints).count == 1
+                ? "signed, unsigned and corrupted responses are indistinguishable"
+                : "transport observations only; inspect explicit server fields"
+        let conclusion = [
+            "observation": observation,
+            "signature_acceptance": positiveControl
+                ? "supported by positive and negative controls for this context and endpoint"
+                : "not independently established by this probe",
+            "login_success": "not established; only an invented account was used",
+        ]
         print("SAP_PROBE_CONCLUSION \(String(decoding: try encoder.encode(conclusion), as: UTF8.self))")
     }
 }

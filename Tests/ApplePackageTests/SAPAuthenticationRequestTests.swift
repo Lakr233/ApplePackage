@@ -6,6 +6,7 @@ import NIOCore
 import NIOPosix
 import XCTest
 
+@MainActor
 final class SAPAuthenticationRequestTests: XCTestCase {
     private actor RecordingSigner: SAPRequestSigning {
         private var bodies: [Data] = []
@@ -68,6 +69,7 @@ final class SAPAuthenticationRequestTests: XCTestCase {
         let signedBodies = await signer.recordedBodies()
         XCTAssertEqual(signedBodies, [sentBody])
         XCTAssertEqual(request.method.rawValue, "POST")
+        XCTAssertEqual(request.headers.first(name: "Content-Type"), "application/x-apple-plist")
         let signature = try XCTUnwrap(request.headers.first(name: "X-Apple-ActionSignature"))
         XCTAssertEqual(Data(base64Encoded: signature), Data([0xa5, 1]))
         let parameters = try XCTUnwrap(PropertyListSerialization.propertyList(from: sentBody, format: nil) as? [String: String])
@@ -115,5 +117,33 @@ final class SAPAuthenticationRequestTests: XCTestCase {
         XCTAssertEqual(APLogger.safeHeaderValue(name: "x-apple-actionsignature", value: "sensitive-blob"), "<redacted>")
         XCTAssertEqual(APLogger.safeHeaderValue(name: "X-Token", value: "secret"), "<redacted>")
         XCTAssertEqual(APLogger.safeHeaderValue(name: "Content-Type", value: "application/x-apple-plist"), "application/x-apple-plist")
+    }
+
+    func testLegacyAuthenticationEndpointRequiresTrailingSlash() throws {
+        let path = "/WebObjects/MZFinance.woa/wa/authenticate"
+        for host in ["buy.itunes.apple.com", "p25-buy.itunes.apple.com", "p123-buy.itunes.apple.com"] {
+            let original = "https://\(host)\(path)?guid=A%2FB&value=1"
+            let normalized = try XCTUnwrap(Bag.normalizedAuthEndpoint(from: original))
+            XCTAssertEqual(normalized.absoluteString, "https://\(host)\(path)/?guid=A%2FB&value=1")
+            XCTAssertEqual(Bag.normalizedAuthEndpoint(from: normalized.absoluteString), normalized)
+        }
+        for original in [
+            "http://buy.itunes.apple.com\(path)",
+            "https://example.invalid\(path)",
+            "https://evilbuy.itunes.apple.com\(path)",
+            "https://pfoo-buy.itunes.apple.com\(path)",
+            "https://p25-buy.itunes.apple.com.example.invalid\(path)",
+            "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/other",
+        ] {
+            XCTAssertEqual(Bag.normalizedAuthEndpoint(from: original)?.absoluteString, original)
+        }
+    }
+
+    func testNativeAuthenticationEndpointNormalizationIsPreserved() {
+        for path in ["/auth/v1/native", "/auth/v1/native/", "/auth/v1/native/fast", "/auth/v1/native/fast/"] {
+            let original = "https://auth.itunes.apple.com\(path)?guid=example"
+            XCTAssertEqual(Bag.normalizedAuthEndpoint(from: original)?.absoluteString,
+                           "https://auth.itunes.apple.com/auth/v1/native/fast/?guid=example")
+        }
     }
 }

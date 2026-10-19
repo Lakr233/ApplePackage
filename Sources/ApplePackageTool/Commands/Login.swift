@@ -15,7 +15,7 @@ import Foundation
     import Glibc
 #endif
 
-struct Login: AsyncParsableCommand {
+struct Login: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "login",
         abstract: "Login to Apple account"

@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,9 +6,11 @@ import PackageDescription
 let package = Package(
     name: "ApplePackage",
     platforms: [
-        .iOS(.v15),
-        .macCatalyst(.v14),
-        .macOS(.v11),
+        .iOS(.v18),
+        .macCatalyst(.v18),
+        .macOS(.v15),
+        .tvOS(.v18),
+        .visionOS(.v2),
     ],
     products: [
         .library(name: "ApplePackage", targets: ["ApplePackage"]),
@@ -51,5 +53,6 @@ let package = Package(
             .product(name: "Logging", package: "swift-log"),
         ]),
         .testTarget(name: "ApplePackageTests", dependencies: ["ApplePackage"]),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )

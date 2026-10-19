@@ -9,7 +9,7 @@ import ApplePackage
 import ArgumentParser
 import Foundation
 
-struct Logout: ParsableCommand {
+struct Logout: ParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "logout",
         abstract: "Logout from Apple account"

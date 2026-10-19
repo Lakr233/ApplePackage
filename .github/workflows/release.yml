@@ -15,10 +15,16 @@ concurrency:
 jobs:
   build:
     name: Build Release
-    runs-on: macos-26
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Report runner toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
 
       - name: Build command-line tools
         run: |
@@ -35,7 +41,6 @@ jobs:
           artifact_name="${product_name}-${safe_ref}-macos-${arch}"
           artifact_dir="${RUNNER_TEMP}/${artifact_name}"
           build_dir="$(swift build -c release --show-bin-path)"
-          toolchain="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain"
           binary_path="${build_dir}/${product_name}"
           sap_binary_path="${build_dir}/AppleSAPTool"
           sap_resources="${build_dir}/ApplePackage_AppleSAPKit.bundle"
@@ -58,16 +63,8 @@ jobs:
           cp "${sap_binary_path}" "${artifact_dir}/AppleSAPTool"
           cp -R "${sap_resources}" "${artifact_dir}/"
 
-          for dylib in \
-            "${toolchain}/usr/lib/swift-5.5/macosx/libswift_Concurrency.dylib" \
-            "${toolchain}/usr/lib/swift-6.2/macosx/libswiftCompatibilitySpan.dylib"; do
-            if [[ -f "${dylib}" ]]; then
-              cp "${dylib}" "${artifact_dir}/"
-            fi
-          done
-
           printf '%s\n' \
-            "Keep the bundled Swift dylibs next to ApplePackageTool when running on macOS 11." \
+            "Requires macOS 15 or later." \
             "Keep ApplePackage_AppleSAPKit.bundle next to both tools; it contains the SAP static tables." \
             > "${artifact_dir}/README.txt"
 

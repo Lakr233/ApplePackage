@@ -9,7 +9,7 @@ import ApplePackage
 import ArgumentParser
 import Foundation
 
-struct Search: AsyncParsableCommand {
+struct Search: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "search",
         abstract: "Search for apps"

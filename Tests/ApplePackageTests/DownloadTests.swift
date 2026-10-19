@@ -20,7 +20,7 @@ final class ApplePackageDownloadTests: XCTestCase {
 
         let testBundleID = "developer.apple.wwdc-Release"
         do {
-            try await withAccount(email: testAccountEmail) { account in
+            try await withAccount(email: testAccountEmail) { @Sendable account in
                 try await Authenticator.rotatePasswordToken(for: &account)
                 let countryCode = Configuration.countryCode(for: account.store) ?? "US"
                 let app = try await Lookup.lookup(bundleID: testBundleID, countryCode: countryCode)
@@ -59,7 +59,7 @@ final class ApplePackageDownloadTests: XCTestCase {
 
         defer { try? FileManager.default.removeItem(at: ipaURL) }
 
-        try await withAccount(email: testAccountEmail) { account in
+        try await withAccount(email: testAccountEmail) { @Sendable account in
             try await Authenticator.rotatePasswordToken(for: &account)
             let countryCode = Configuration.countryCode(for: account.store) ?? "US"
             let app = try await Lookup.lookup(bundleID: testBundleID, countryCode: countryCode)

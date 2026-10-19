@@ -8,8 +8,18 @@
 import AsyncHTTPClient
 import Foundation
 import NIOSSL
+import Synchronization
 
 public enum Configuration {
+    private struct State: Sendable {
+        var deviceIdentifier: String?
+        var userAgent = "Configurator/2.17 (Macintosh; OS X 15.2; 24C5089c) AppleWebKit/0620.1.16.11.6"
+        var tlsConfiguration: TLSConfiguration?
+        var homePath = Configuration.defaultHomePath()
+    }
+
+    private static let state = Mutex(State())
+
     /**
      DeviceIdentifier is a unique identifier for your device.
 
@@ -19,58 +29,76 @@ public enum Configuration {
      **It is a must set value before any network request**
      **otherwise your account may be locked for security reason**
      */
-    private static var configuredDeviceIdentifier: String?
-
     public static var deviceIdentifier: String {
         get {
-            if let configuredDeviceIdentifier = configuredDeviceIdentifier {
-                return configuredDeviceIdentifier
+            if let identifier = state.withLock({ $0.deviceIdentifier }) {
+                return identifier
             }
+            // Discover outside the lock. An explicit value supplied meanwhile
+            // takes precedence when the default is installed.
             let identifier = (try? DeviceIdentifier.system()) ?? ""
-            configuredDeviceIdentifier = identifier
-            return identifier
+            return state.withLock { state in
+                if let configured = state.deviceIdentifier { return configured }
+                state.deviceIdentifier = identifier
+                return identifier
+            }
         }
         set {
             assert(!newValue.contains(":"))
             assert(!newValue.contains("-"))
             assert(!newValue.contains(" "))
             assert(!newValue.contains("\n"))
-            configuredDeviceIdentifier = newValue
+            state.withLock { $0.deviceIdentifier = newValue }
         }
     }
 
-    public static var userAgent: String = "Configurator/2.17 (Macintosh; OS X 15.2; 24C5089c) AppleWebKit/0620.1.16.11.6"
+    public static var userAgent: String {
+        get { state.withLock { $0.userAgent } }
+        set { state.withLock { $0.userAgent = newValue } }
+    }
 
-    public static var tlsConfiguration: TLSConfiguration = {
-        precondition(!deviceIdentifier.isEmpty, "deviceIdentifier must be set")
-        #if DEBUG
-            var conf = TLSConfiguration.makeClientConfiguration()
-            conf.certificateVerification = .none
-            return conf
-        #else
-            return TLSConfiguration.makeClientConfiguration()
-        #endif
-    }()
+    public static var tlsConfiguration: TLSConfiguration {
+        get {
+            if let configuration = state.withLock({ $0.tlsConfiguration }) {
+                return configuration
+            }
+            // deviceIdentifier has its own lock-taking accessor, so initialize
+            // this default without holding the configuration lock.
+            precondition(!deviceIdentifier.isEmpty, "deviceIdentifier must be set")
+            var configuration = TLSConfiguration.makeClientConfiguration()
+            #if DEBUG
+                configuration.certificateVerification = .none
+            #endif
+            return state.withLock { state in
+                if let configured = state.tlsConfiguration { return configured }
+                state.tlsConfiguration = configuration
+                return configuration
+            }
+        }
+        set { state.withLock { $0.tlsConfiguration = newValue } }
+    }
 
     public static let storeFrontValues: [String: String] = kCountryCodes
     public static let timeoutConnect: Int64 = 10
     public static let timeoutRead: Int64 = 30
 
-    #if os(macOS)
-        public static var homePath: URL = FileManager.default
-            .homeDirectoryForCurrentUser
-            .appendingPathComponent(".ipatool", isDirectory: true)
-        {
-            didSet { assert(homePath.isFileURL) }
+    public static var homePath: URL {
+        get { state.withLock { $0.homePath } }
+        set {
+            assert(newValue.isFileURL)
+            state.withLock { $0.homePath = newValue }
         }
-    #else
-        public static var homePath: URL = FileManager.default
-            .urls(for: .documentDirectory, in: .userDomainMask).first!
-            .appendingPathComponent(".ipatool", isDirectory: true)
-        {
-            didSet { assert(homePath.isFileURL) }
-        }
-    #endif
+    }
+
+    private static func defaultHomePath() -> URL {
+        #if os(macOS)
+            FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".ipatool", isDirectory: true)
+        #else
+            FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                .appendingPathComponent(".ipatool", isDirectory: true)
+        #endif
+    }
 
     public static func storeAPIHost(pod: String?) -> String {
         guard let pod, !pod.isEmpty else {
