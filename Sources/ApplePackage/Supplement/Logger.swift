@@ -7,37 +7,45 @@
 
 import Foundation
 import Logging
+import Synchronization
 
 public enum APLogger {
-    public static var verbose: Bool = false
+    private struct State: Sendable {
+        var verbose = false
+        var logger = Logger(label: "com.applepackage")
+    }
 
-    private static var _logger: Logger = .init(label: "com.applepackage")
+    private static let state = Mutex(State())
+
+    public static var verbose: Bool {
+        get { state.withLock { $0.verbose } }
+        set { state.withLock { $0.verbose = newValue } }
+    }
 
     public static var logger: Logger {
-        get { _logger }
-        set { _logger = newValue }
+        get { state.withLock { $0.logger } }
+        set { state.withLock { $0.logger = newValue } }
     }
 
     static func info(_ message: String) {
-        _logger.info("\(message)")
+        logger.info("\(message)")
     }
 
     static func debug(_ message: String) {
-        guard verbose else { return }
-        _logger.debug("\(message)")
+        let snapshot = state.withLock { ($0.verbose, $0.logger) }
+        guard snapshot.0 else { return }
+        snapshot.1.debug("\(message)")
     }
 
     static func error(_ message: String) {
-        _logger.error("\(message)")
+        logger.error("\(message)")
     }
 
     static func logRequest(method: String, url: String, headers: [(String, String)] = []) {
         guard verbose else { return }
         var msg = ">>> \(method) \(url)"
         for (name, value) in headers {
-            let safeValue = name.lowercased().contains("token") || name.lowercased().contains("password")
-                ? "<redacted>"
-                : value
+            let safeValue = safeHeaderValue(name: name, value: value)
             msg += "\n    \(name): \(safeValue)"
         }
         debug(msg)
@@ -50,8 +58,15 @@ public enum APLogger {
             msg += " (\(bodySize) bytes)"
         }
         for (name, value) in headers {
-            msg += "\n    \(name): \(value)"
+            msg += "\n    \(name): \(safeHeaderValue(name: name, value: value))"
         }
         debug(msg)
+    }
+
+    static func safeHeaderValue(name: String, value: String) -> String {
+        let name = name.lowercased()
+        return name.contains("token") || name.contains("password") || name.contains("signature")
+            ? "<redacted>"
+            : value
     }
 }

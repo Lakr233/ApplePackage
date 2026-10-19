@@ -8,8 +8,9 @@
 import ApplePackage
 import ArgumentParser
 import Foundation
+import Synchronization
 
-struct Download: AsyncParsableCommand {
+struct Download: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "download",
         abstract: "Download an app"
@@ -63,7 +64,7 @@ struct Download: AsyncParsableCommand {
 
             let (contentLength, supportsRanges) = try await getContentInfo(from: url)
             print("downloading \(app.name) (\(app.bundleID)) version \(downloadOutput.bundleShortVersionString)")
-            print("content length: \(formatBytes(contentLength))")
+            print("content length: \(Self.formatBytes(contentLength))")
 
             let tempURL = temporaryDownloadURL(
                 outputURL: outputURL,
@@ -76,7 +77,7 @@ struct Download: AsyncParsableCommand {
                 let existingSize = try FileManager.default.attributesOfItem(atPath: tempURL.path)[.size] as? Int64 ?? 0
                 if existingSize > 0, existingSize < contentLength, supportsRanges {
                     startByte = existingSize
-                    print("found partial download, resuming from \(formatBytes(startByte))")
+                    print("found partial download, resuming from \(Self.formatBytes(startByte))")
                 } else if existingSize >= contentLength {
                     print("file already downloaded completely")
                 } else {
@@ -129,12 +130,12 @@ struct Download: AsyncParsableCommand {
             fileURL: fileURL,
             startByte: startByte,
             totalSize: totalSize,
-            progressHandler: updateProgress(downloaded:total:)
+            progressHandler: Self.updateProgress(downloaded:total:)
         )
 
         print("", terminator: "")
         try await downloader.download(request: request)
-        updateProgress(downloaded: totalSize, total: totalSize)
+        Self.updateProgress(downloaded: totalSize, total: totalSize)
         print("")
     }
 
@@ -165,24 +166,28 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
     private let fileURL: URL
     private let startByte: Int64
     private let totalSize: Int64
-    private let progressHandler: (Int64, Int64) -> Void
+    private let progressHandler: @Sendable (Int64, Int64) -> Void
 
-    private var fileHandle: FileHandle?
-    private var continuation: CheckedContinuation<Void, Error>?
-    private var downloadedBytes: Int64
-    private var lastProgressUpdate = Date()
+    private struct State {
+        var fileHandle: FileHandle?
+        var continuation: CheckedContinuation<Void, Error>?
+        var downloadedBytes: Int64
+        var lastProgressUpdate = Date()
+    }
+
+    private let state: Mutex<State>
 
     init(
         fileURL: URL,
         startByte: Int64,
         totalSize: Int64,
-        progressHandler: @escaping (Int64, Int64) -> Void
+        progressHandler: @escaping @Sendable (Int64, Int64) -> Void
     ) {
         self.fileURL = fileURL
         self.startByte = startByte
         self.totalSize = totalSize
         self.progressHandler = progressHandler
-        downloadedBytes = startByte
+        state = Mutex(State(downloadedBytes: startByte))
     }
 
     func download(request: URLRequest) async throws {
@@ -197,19 +202,21 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
         }
 
         try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
+            state.withLock { $0.continuation = continuation }
             session.dataTask(with: request).resume()
         }
     }
 
     private func prepareOutputFile() throws {
+        let handle: FileHandle
         if startByte > 0, FileManager.default.fileExists(atPath: fileURL.path) {
-            fileHandle = try FileHandle(forWritingTo: fileURL)
-            try fileHandle?.seek(toOffset: UInt64(startByte))
+            handle = try FileHandle(forWritingTo: fileURL)
+            try handle.seek(toOffset: UInt64(startByte))
         } else {
             FileManager.default.createFile(atPath: fileURL.path, contents: nil, attributes: nil)
-            fileHandle = try FileHandle(forWritingTo: fileURL)
+            handle = try FileHandle(forWritingTo: fileURL)
         }
+        state.withLock { $0.fileHandle = handle }
     }
 
     func urlSession(
@@ -231,13 +238,17 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
 
     func urlSession(_: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         do {
-            try fileHandle?.write(contentsOf: data)
-            downloadedBytes += Int64(data.count)
-
-            let now = Date()
-            if now.timeIntervalSince(lastProgressUpdate) >= 0.5 {
-                progressHandler(downloadedBytes, totalSize)
-                lastProgressUpdate = now
+            let progress = try state.withLock { state -> Int64? in
+                guard let handle = state.fileHandle else { return nil }
+                try handle.write(contentsOf: data)
+                state.downloadedBytes += Int64(data.count)
+                let now = Date()
+                guard now.timeIntervalSince(state.lastProgressUpdate) >= 0.5 else { return nil }
+                state.lastProgressUpdate = now
+                return state.downloadedBytes
+            }
+            if let progress = progress {
+                progressHandler(progress, totalSize)
             }
         } catch {
             complete(with: error)
@@ -250,14 +261,17 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
     }
 
     private func complete(with error: Error?) {
-        try? fileHandle?.close()
-        fileHandle = nil
-
+        let continuation = state.withLock { state in
+            try? state.fileHandle?.close()
+            state.fileHandle = nil
+            let continuation = state.continuation
+            state.continuation = nil
+            return continuation
+        }
         guard let continuation else {
             return
         }
 
-        self.continuation = nil
         if let error = error {
             continuation.resume(throwing: error)
         } else {
@@ -348,7 +362,7 @@ private extension Download {
         }
     }
 
-    private func updateProgress(downloaded: Int64, total: Int64) {
+    private static func updateProgress(downloaded: Int64, total: Int64) {
         let percentage = min(100.0, Double(downloaded) / Double(total) * 100.0)
         let progressBarWidth = 30
         let filledWidth = Int(Double(progressBarWidth) * percentage / 100.0)
@@ -356,11 +370,11 @@ private extension Download {
 
         let progressBar = String(repeating: "█", count: filledWidth) + String(repeating: "░", count: emptyWidth)
 
-        print("\rprogress: [\(progressBar)] \(String(format: "%.1f", percentage))% (\(formatBytes(downloaded))/\(formatBytes(total)))", terminator: "")
-        fflush(stdout)
+        let message = "\rprogress: [\(progressBar)] \(String(format: "%.1f", percentage))% (\(formatBytes(downloaded))/\(formatBytes(total)))"
+        FileHandle.standardOutput.write(Data(message.utf8))
     }
 
-    private func formatBytes(_ bytes: Int64) -> String {
+    private static func formatBytes(_ bytes: Int64) -> String {
         let units = ["B", "KB", "MB", "GB", "TB"]
         var size = Double(bytes)
         var unitIndex = 0

@@ -9,7 +9,7 @@ import ApplePackage
 import ArgumentParser
 import Foundation
 
-enum PlatformArgument: String, ExpressibleByArgument {
+enum PlatformArgument: String, ExpressibleByArgument, Sendable {
     case iPhone
     case iPad
     case AppleTV
@@ -26,7 +26,7 @@ enum PlatformArgument: String, ExpressibleByArgument {
     }
 }
 
-struct GlobalOptions: ParsableArguments {
+struct GlobalOptions: ParsableArguments, Sendable {
     @Option(name: .long, help: "Custom device GUID (default: system MAC address)")
     var guid: String?
 
@@ -45,7 +45,7 @@ struct GlobalOptions: ParsableArguments {
 }
 
 @main
-struct ApplePackageTool: AsyncParsableCommand {
+struct ApplePackageTool: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "applepackage",
         abstract: "A tool for managing Apple apps",

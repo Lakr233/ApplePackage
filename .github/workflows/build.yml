@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build:
     name: Build (${{ matrix.platform }})
-    runs-on: macos-15
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
@@ -36,9 +36,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Report runner toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
       - name: Build
         run: |
           set -o pipefail
           xcodebuild -scheme ApplePackage \
             -destination "${{ matrix.destination }}" \
             build 2>&1 | xcbeautify
+
+      - name: Test SAP algorithms and request integration without network or credentials
+        if: matrix.platform == 'macOS'
+        run: swift test --filter 'SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests'

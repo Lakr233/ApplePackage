@@ -6,8 +6,8 @@
 @testable import ApplePackage
 import Foundation
 
-/// Module-level var referenced by all auth-dependent tests.
-private(set) var testAccountEmail: String = ""
+/// Credential identity is derived when read; bootstrap has no shared write.
+var testAccountEmail: String { TestConfiguration.email ?? "" }
 
 /// Central credential loader for test infrastructure.
 /// Reads from environment variables with fallback to `/tmp/applepackage/*.txt` files.
@@ -56,8 +56,6 @@ enum TestConfiguration {
         }
 
         guard let email else { return }
-        testAccountEmail = email
-
         // Bootstrap account.json from TEST_ACCOUNT_DATA (base64) if no cached account exists
         if let base64Data = env["TEST_ACCOUNT_DATA"], !base64Data.isEmpty {
             let accountPath = Configuration.accountPath(for: email)

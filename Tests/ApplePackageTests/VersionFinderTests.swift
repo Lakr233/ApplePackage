@@ -19,7 +19,7 @@ final class ApplePackageVersionFinderTests: XCTestCase {
 
         let testItem = "com.tencent.xin"
         do {
-            try await withAccount(email: testAccountEmail) { account in
+            try await withAccount(email: testAccountEmail) { @Sendable account in
                 let versions = try await VersionFinder.list(account: &account, bundleIdentifier: testItem)
                 print("versions test passed with \(versions.count) versions: \(versions)")
             }
@@ -32,7 +32,7 @@ final class ApplePackageVersionFinderTests: XCTestCase {
         try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
 
         do {
-            try await withAccount(email: testAccountEmail) { account in
+            try await withAccount(email: testAccountEmail) { @Sendable account in
                 _ = try await VersionFinder.list(account: &account, bundleIdentifier: "invalid.bundle.id")
                 XCTFail("should fail with invalid bundle identifier")
             }

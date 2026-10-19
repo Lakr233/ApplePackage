@@ -58,7 +58,7 @@ final class ApplePackagePurchaseTests: XCTestCase {
 
         let testBundleID = "developer.apple.wwdc-Release"
         do {
-            try await withAccount(email: testAccountEmail) { account in
+            try await withAccount(email: testAccountEmail) { @Sendable account in
                 try await Authenticator.rotatePasswordToken(for: &account)
                 let countryCode = Configuration.countryCode(for: account.store) ?? "US"
                 let app = try await Lookup.lookup(bundleID: testBundleID, countryCode: countryCode)
@@ -74,7 +74,7 @@ final class ApplePackagePurchaseTests: XCTestCase {
         try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
 
         do {
-            try await withAccount(email: testAccountEmail) { account in
+            try await withAccount(email: testAccountEmail) { @Sendable account in
                 let paidApp = Software(
                     id: 123_456_789,
                     bundleID: "com.example.paid",

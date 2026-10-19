@@ -9,7 +9,7 @@ import ApplePackage
 import ArgumentParser
 import Foundation
 
-struct Versions: AsyncParsableCommand {
+struct Versions: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "versions",
         abstract: "List versions of an app"

@@ -16,7 +16,7 @@ final class ApplePackageAuthenticateTests: XCTestCase {
 
     @MainActor func testRotatePasswordToken() async throws {
         try XCTSkipUnless(TestConfiguration.hasAuthenticatedAccount, "No authenticated account available")
-        try await withAccount(email: testAccountEmail) { account in
+        try await withAccount(email: testAccountEmail) { @Sendable account in
             try await Authenticator.rotatePasswordToken(for: &account)
         }
     }
@@ -45,7 +45,7 @@ final class ApplePackageAuthenticateTests: XCTestCase {
         let loginAccountPath = "/tmp/applepackage/login_account.txt"
         if fileManager.fileExists(atPath: loginAccountPath) {
             print("login account file exists at \(loginAccountPath), rotating token instead")
-            try await withAccount(email: email) { account in
+            try await withAccount(email: email) { @Sendable account in
                 try await Authenticator.rotatePasswordToken(for: &account)
             }
             return

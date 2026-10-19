@@ -15,8 +15,9 @@ For a version with a graphical user interface (GUI) and an on-device installer, 
 
 ### Prerequisites
 
-- Swift 5.9 or later
-- macOS 12+
+- Swift 6.2 or later
+- macOS 15+
+- Library deployment targets: iOS 18+, Mac Catalyst 18+, tvOS 18+, visionOS 2+
 
 ### Using Swift Run
 
@@ -47,6 +48,21 @@ applepackage login <email> <password> [--code <2fa-code>]
 - `<email>`: Your Apple ID email address
 - `<password>`: Your Apple ID password
 - `--code`: Optional 2FA verification code
+
+To sign the actual login request with SAP, supply your original complete
+post-handshake context explicitly:
+
+```bash
+swift run ApplePackageTool login <email> <password> \
+  --sap-context /absolute/path/to/post-handshake.json
+```
+
+The tool does not generate a fresh SAP handshake or select a recorded context
+for you. In a terminal it can prompt for a verification code while retaining
+the same signer; noninteractive callers should supply `--code`. See
+[SAP integration](SAPIntegration.md) for the virtual IV address option, state
+lifetime, library injection, and the offline tests. A matching offline
+signature does not by itself establish that Apple accepts a live session.
 
 ### Logout
 
@@ -119,6 +135,7 @@ let results = try await Searcher.search(term: "example", countryCode: "US", limi
 - [AsyncHTTPClient](https://github.com/swift-server/async-http-client.git)
 - [Swift Collections](https://github.com/apple/swift-collections.git)
 - [Swift Argument Parser](https://github.com/apple/swift-argument-parser)
+- [OpenSSL for Swift Package Manager](https://github.com/Lakr233/openssl-spm) via AppleSAPKit
 
 ## Acknowledgments
 
