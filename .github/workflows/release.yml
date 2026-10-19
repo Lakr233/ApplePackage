@@ -20,8 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build ApplePackageTool
-        run: swift build -c release --product ApplePackageTool
+      - name: Build command-line tools
+        run: |
+          swift build -c release --product ApplePackageTool
+          swift build -c release --product AppleSAPTool
 
       - name: Package artifact
         run: |
@@ -35,14 +37,26 @@ jobs:
           build_dir="$(swift build -c release --show-bin-path)"
           toolchain="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain"
           binary_path="${build_dir}/${product_name}"
+          sap_binary_path="${build_dir}/AppleSAPTool"
+          sap_resources="${build_dir}/ApplePackage_AppleSAPKit.bundle"
 
           if [[ ! -x "${binary_path}" ]]; then
             echo "::error::Built binary ${product_name} was not found"
             exit 1
           fi
+          if [[ ! -d "${sap_resources}" ]]; then
+            echo "::error::AppleSAPKit static table resource bundle was not found"
+            exit 1
+          fi
+          if [[ ! -x "${sap_binary_path}" ]]; then
+            echo "::error::Built binary AppleSAPTool was not found"
+            exit 1
+          fi
 
           mkdir -p "${artifact_dir}"
           cp "${binary_path}" "${artifact_dir}/${product_name}"
+          cp "${sap_binary_path}" "${artifact_dir}/AppleSAPTool"
+          cp -R "${sap_resources}" "${artifact_dir}/"
 
           for dylib in \
             "${toolchain}/usr/lib/swift-5.5/macosx/libswift_Concurrency.dylib" \
@@ -54,6 +68,7 @@ jobs:
 
           printf '%s\n' \
             "Keep the bundled Swift dylibs next to ApplePackageTool when running on macOS 11." \
+            "Keep ApplePackage_AppleSAPKit.bundle next to both tools; it contains the SAP static tables." \
             > "${artifact_dir}/README.txt"
 
           (cd "${RUNNER_TEMP}" && ditto -c -k --sequesterRsrc --keepParent "${artifact_name}" "${GITHUB_WORKSPACE}/${artifact_name}.zip")

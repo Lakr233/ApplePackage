@@ -19,12 +19,23 @@ public enum Configuration {
      **It is a must set value before any network request**
      **otherwise your account may be locked for security reason**
      */
-    public static var deviceIdentifier: String = (try? DeviceIdentifier.system()) ?? "" {
-        didSet {
-            assert(!deviceIdentifier.contains(":"))
-            assert(!deviceIdentifier.contains("-"))
-            assert(!deviceIdentifier.contains(" "))
-            assert(!deviceIdentifier.contains("\n"))
+    private static var configuredDeviceIdentifier: String?
+
+    public static var deviceIdentifier: String {
+        get {
+            if let configuredDeviceIdentifier = configuredDeviceIdentifier {
+                return configuredDeviceIdentifier
+            }
+            let identifier = (try? DeviceIdentifier.system()) ?? ""
+            configuredDeviceIdentifier = identifier
+            return identifier
+        }
+        set {
+            assert(!newValue.contains(":"))
+            assert(!newValue.contains("-"))
+            assert(!newValue.contains(" "))
+            assert(!newValue.contains("\n"))
+            configuredDeviceIdentifier = newValue
         }
     }
 

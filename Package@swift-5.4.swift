@@ -27,6 +27,7 @@ let package = Package(
                 "Supplement/Logger.swift",
                 "Supplement/PackagePlatformValidator.swift",
                 "Supplement/SignatureInjector.swift",
+                "Supplement/SAPRequestSigner.swift",
                 "Supplement/Then.swift",
             ]
         ),

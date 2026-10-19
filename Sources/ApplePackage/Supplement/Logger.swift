@@ -35,9 +35,7 @@ public enum APLogger {
         guard verbose else { return }
         var msg = ">>> \(method) \(url)"
         for (name, value) in headers {
-            let safeValue = name.lowercased().contains("token") || name.lowercased().contains("password")
-                ? "<redacted>"
-                : value
+            let safeValue = safeHeaderValue(name: name, value: value)
             msg += "\n    \(name): \(safeValue)"
         }
         debug(msg)
@@ -50,8 +48,15 @@ public enum APLogger {
             msg += " (\(bodySize) bytes)"
         }
         for (name, value) in headers {
-            msg += "\n    \(name): \(value)"
+            msg += "\n    \(name): \(safeHeaderValue(name: name, value: value))"
         }
         debug(msg)
+    }
+
+    static func safeHeaderValue(name: String, value: String) -> String {
+        let name = name.lowercased()
+        return name.contains("token") || name.contains("password") || name.contains("signature")
+            ? "<redacted>"
+            : value
     }
 }

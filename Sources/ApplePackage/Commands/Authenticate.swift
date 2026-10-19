@@ -22,7 +22,8 @@ public enum Authenticator {
         email: String,
         password: String,
         code: String = "",
-        cookies: [Cookie] = []
+        cookies: [Cookie] = [],
+        sapSigner: (any SAPRequestSigning)? = nil
     ) async throws -> Account {
         let deviceIdentifier = Configuration.deviceIdentifier
 
@@ -42,13 +43,14 @@ public enum Authenticator {
         while currentAttempt <= 2, redirectAttempt <= 3 {
             defer { currentAttempt += 1 }
             do {
-                let request = try makeRequest(
+                let request = try await makeRequest(
                     endpoint: requestEndpoint,
                     email: email,
                     password: password,
                     code: code,
                     cookies: cookies,
-                    deviceIdentifier: deviceIdentifier
+                    deviceIdentifier: deviceIdentifier,
+                    sapSigner: sapSigner
                 )
                 let response = try await client.execute(request: request).get()
                 let result = try parseResponse(
@@ -70,7 +72,7 @@ public enum Authenticator {
                     continue
                 case .codeRequired:
                     currentAttempt += 65535 // stop attempts
-                    try ensureFailed(Strings.authRequiresVerificationCode)
+                    throw AuthenticationError.verificationCodeRequired
                 case .retry:
                     continue
                 case let .failure(string):
@@ -85,12 +87,16 @@ public enum Authenticator {
         try ensureFailed(Strings.authFailedUnknown)
     }
 
-    public static func rotatePasswordToken(for account: inout Account) async throws {
+    public static func rotatePasswordToken(
+        for account: inout Account,
+        sapSigner: (any SAPRequestSigning)? = nil
+    ) async throws {
         let newAccount = try await authenticate(
             email: account.email,
             password: account.password,
             code: "",
-            cookies: account.cookie
+            cookies: account.cookie,
+            sapSigner: sapSigner
         )
         account = newAccount
     }
@@ -108,14 +114,15 @@ public enum Authenticator {
         return try comps.url.get()
     }
 
-    private static func makeRequest(
+    static func makeRequest(
         endpoint: URL,
         email: String,
         password: String,
         code: String,
         cookies: [Cookie],
-        deviceIdentifier: String
-    ) throws -> HTTPClient.Request {
+        deviceIdentifier: String,
+        sapSigner: (any SAPRequestSigning)? = nil
+    ) async throws -> HTTPClient.Request {
         let parameters: [String: String] = [
             "appleId": email,
             "attempt": "\(code.isEmpty ? "4" : "2")",
@@ -135,6 +142,10 @@ public enum Authenticator {
         ]
         for item in cookies.buildCookieHeader(endpoint) {
             headers.append(item)
+        }
+        if let sapSigner = sapSigner {
+            let signature = try await sapSigner.sign(data)
+            headers.append(("X-Apple-ActionSignature", signature.base64EncodedString()))
         }
         APLogger.logRequest(method: "POST", url: endpoint.absoluteString, headers: headers)
         return try .init(

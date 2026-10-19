@@ -48,6 +48,21 @@ applepackage login <email> <password> [--code <2fa-code>]
 - `<password>`: Your Apple ID password
 - `--code`: Optional 2FA verification code
 
+To sign the actual login request with SAP, supply your original complete
+post-handshake context explicitly:
+
+```bash
+swift run ApplePackageTool login <email> <password> \
+  --sap-context /absolute/path/to/post-handshake.json
+```
+
+The tool does not generate a fresh SAP handshake or select a recorded context
+for you. In a terminal it can prompt for a verification code while retaining
+the same signer; noninteractive callers should supply `--code`. See
+[SAP integration](SAPIntegration.md) for the virtual IV address option, state
+lifetime, library injection, and the offline tests. A matching offline
+signature does not by itself establish that Apple accepts a live session.
+
 ### Logout
 
 Remove stored credentials for an account:
@@ -119,6 +134,7 @@ let results = try await Searcher.search(term: "example", countryCode: "US", limi
 - [AsyncHTTPClient](https://github.com/swift-server/async-http-client.git)
 - [Swift Collections](https://github.com/apple/swift-collections.git)
 - [Swift Argument Parser](https://github.com/apple/swift-argument-parser)
+- [OpenSSL for Swift Package Manager](https://github.com/Lakr233/openssl-spm) via AppleSAPKit
 
 ## Acknowledgments
 

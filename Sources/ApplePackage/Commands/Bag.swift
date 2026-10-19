@@ -15,10 +15,12 @@ public enum Bag {
 
     private static let defaultAuthEndpoint = "https://auth.itunes.apple.com/auth/v1/native/fast/"
 
-    public static func fetchBag() async throws -> BagOutput {
+    public static func fetchBag(
+        redirectConfiguration: HTTPClient.Configuration.RedirectConfiguration = .follow(max: 8, allowCycles: false)
+    ) async throws -> BagOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
 
-        let client = Configuration.makeHTTPClient(redirectConfiguration: .follow(max: 8, allowCycles: false))
+        let client = Configuration.makeHTTPClient(redirectConfiguration: redirectConfiguration)
         defer { _ = client.shutdown() }
 
         var comps = URLComponents()
