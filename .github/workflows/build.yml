@@ -51,4 +51,4 @@ jobs:
 
       - name: Test SAP algorithms and request integration without network or credentials
         if: matrix.platform == 'macOS'
-        run: swift test --filter 'SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests'
+        run: swift test --filter 'SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests|SAPHandshakeTests|LoginArgumentsTests'

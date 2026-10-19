@@ -1,6 +1,7 @@
 #include "rng_f1.h"
 #include <string.h>
 #include "algorithm_tables.inc"
+#include "setup_tables.inc"
 
 uint32_t sap_rng_word(sap_rng_state *s) {
     for (unsigned i=0;i<624;i++) {
@@ -13,8 +14,8 @@ uint32_t sap_rng_word(sap_rng_state *s) {
     return y;
 }
 
-static void nonzero(sap_rng_state *s,uint32_t seed,uint32_t address,
-                    const uint8_t table[256],uint8_t mask,uint8_t *output,size_t n) {
+void sap_rng_fill(sap_rng_state *s,uint32_t seed,uint32_t address,
+                  const uint8_t table[256],uint8_t mask,uint8_t *output,size_t n) {
     size_t remain=n;
     while (remain) {
         uint32_t word=sap_rng_word(s);
@@ -29,12 +30,12 @@ static void nonzero(sap_rng_state *s,uint32_t seed,uint32_t address,
 }
 
 void sap_rng_iv(sap_rng_state *s,uint32_t seed,uint32_t address,uint8_t output[16]) {
-    nonzero(s,seed,address,IV_WHITEN,0x12,output,16);
+    sap_rng_fill(s,seed,address,IV_WHITEN,0x12,output,16);
 }
 
 void sap_rng_f1_material(sap_rng_state *s,uint32_t seed,uint32_t address,uint8_t output[78]) {
-    nonzero(s,seed,address,F1_WHITEN,0x27,output,60);
-    nonzero(s,seed,address+0xaau,F1_WHITEN,0x27,output+60,18);
+    sap_rng_fill(s,seed,address,F1_WHITEN,0x27,output,60);
+    sap_rng_fill(s,seed,address+0xaau,F1_WHITEN,0x27,output+60,18);
 }
 
 static void round_g(const uint8_t high[64],uint8_t output[64]) {
@@ -65,4 +66,43 @@ void sap_f1_from_material(const uint8_t material[78],uint8_t output[256]) {
 
 void sap_rng_f1(sap_rng_state *s,uint32_t seed,uint32_t address,uint8_t output[256]) {
     uint8_t material[78]; sap_rng_f1_material(s,seed,address,material); sap_f1_from_material(material,output);
+}
+
+void sap_rng_initialize(sap_rng_state *s, uint32_t mt_seed, uint32_t key_word3,
+                        uint32_t key_word0, uint32_t seconds, uint32_t microseconds,
+                        uint32_t pool[128]) {
+    uint32_t keys[4] = {key_word0, microseconds, seconds, key_word3};
+    s->words[0] = mt_seed;
+    for (unsigned i = 1; i < 624; i++) {
+        uint32_t previous = s->words[i - 1];
+        s->words[i] = 1812433253u * (previous ^ (previous >> 30)) + i;
+    }
+    unsigned i = 1, j = 0;
+    for (unsigned k = 0; k < 624; k++) {
+        uint32_t previous = s->words[i - 1];
+        s->words[i] = (s->words[i] ^ ((previous ^ (previous >> 30)) * 1664525u)) + keys[j] + j;
+        if (++i == 624) { s->words[0] = s->words[623]; i = 1; }
+        if (++j == 4) { keys[0] ^= 0x200u; j = 0; }
+        else { keys[j] ^= 0x201u; }
+    }
+    for (unsigned k = 0; k < 623; k++) {
+        uint32_t previous = s->words[i - 1];
+        s->words[i] = (s->words[i] ^ ((previous ^ (previous >> 30)) * 1566083941u)) - i;
+        if (++i == 624) { s->words[0] = s->words[623]; i = 1; }
+    }
+    s->words[0] = 0x80000000u;
+    s->cursor = 0;
+    for (unsigned k = 0; k < 128; k++) pool[k] = sap_rng_word(s);
+    for (unsigned k = 0; k < 64; k += 4) pool[k] |= ~pool[pool[k] & 62] << 16;
+    /* Zero-byte retries advance the stream; this cannot be replaced by a fixed skip. */
+    uint8_t auxiliary[1024];
+    sap_rng_fill(s, pool[0x30 / 4], 0x7ff9b0u, INITIALIZE_WHITEN, 0x35, auxiliary, sizeof(auxiliary));
+}
+
+void sap_rng_setup(sap_rng_state *s, uint32_t seed, uint32_t address, uint8_t *output, size_t count) {
+    sap_rng_fill(s, seed, address, IV_WHITEN, 0x12, output, count);
+}
+
+void sap_rng_exchange(sap_rng_state *s, uint32_t seed, uint32_t address, uint8_t *output, size_t count) {
+    sap_rng_fill(s, seed, address, EXCHANGE_WHITEN, 0x4b, output, count);
 }

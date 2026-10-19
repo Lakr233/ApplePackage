@@ -15,8 +15,6 @@ let package = Package(
     products: [
         .library(name: "ApplePackage", targets: ["ApplePackage"]),
         .executable(name: "ApplePackageTool", targets: ["ApplePackageTool"]),
-        .library(name: "AppleSAPKit", targets: ["AppleSAPKit"]),
-        .executable(name: "AppleSAPTool", targets: ["AppleSAPTool"]),
     ],
     dependencies: [
         .package(url: "https://github.com/Lakr233/openssl-spm.git", from: "4.0.1"),
@@ -27,32 +25,28 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
     ],
     targets: [
-        .target(name: "CSAPRandom", path: "SAP/Sources/CSAPRandom", publicHeadersPath: "include"),
-        .target(
-            name: "AppleSAPKit",
-            dependencies: ["CSAPRandom", .product(name: "OpenSSL", package: "openssl-spm")],
-            path: "SAP/Sources/AppleSAPKit",
-            resources: [.process("Resources")]
-        ),
+        .target(name: "CApplePackage", publicHeadersPath: "include"),
         .executableTarget(
-            name: "AppleSAPTool",
-            dependencies: ["AppleSAPKit", .product(name: "ArgumentParser", package: "swift-argument-parser")],
-            path: "SAP/Sources/AppleSAPTool"
+            name: "ApplePackageTool",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .target(name: "ApplePackage"),
+            ]
         ),
-        .testTarget(name: "AppleSAPKitTests", dependencies: ["AppleSAPKit"], path: "SAP/Tests/AppleSAPKitTests"),
-        .executableTarget(name: "ApplePackageTool", dependencies: [
-            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            .target(name: "ApplePackage"),
-            .target(name: "AppleSAPKit"),
-        ]),
-        .target(name: "ApplePackage", dependencies: [
-            .target(name: "AppleSAPKit"),
-            .product(name: "ZIPFoundation", package: "ZIPFoundation"),
-            .product(name: "AsyncHTTPClient", package: "async-http-client"),
-            .product(name: "Collections", package: "swift-collections"),
-            .product(name: "Logging", package: "swift-log"),
-        ]),
-        .testTarget(name: "ApplePackageTests", dependencies: ["ApplePackage"]),
+        .target(
+            name: "ApplePackage",
+            dependencies: [
+                .target(name: "CApplePackage"),
+                .product(name: "OpenSSL", package: "openssl-spm"),
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                .product(name: "Collections", package: "swift-collections"),
+                .product(name: "Logging", package: "swift-log"),
+            ],
+            resources: [.process("SAP/Resources")]
+        ),
+        .testTarget(name: "ApplePackageTests", dependencies: ["ApplePackage"], resources: [.copy("SAP/Fixtures")]),
+        .testTarget(name: "ApplePackageToolTests", dependencies: ["ApplePackageTool"]),
     ],
     swiftLanguageModes: [.v6]
 )

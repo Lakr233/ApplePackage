@@ -55,7 +55,7 @@ public enum Bag {
         )
 
         guard var body = response.body,
-              let data = body.readData(length: body.readableBytes)
+            let data = body.readData(length: body.readableBytes)
         else {
             APLogger.debug("bag: empty response body, using default auth endpoint")
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
@@ -63,11 +63,13 @@ public enum Bag {
 
         let plistData = extractPlistData(from: data)
 
-        guard let plist = try? PropertyListSerialization.propertyList(
-            from: plistData,
-            options: [],
-            format: nil
-        ) as? [String: Any] else {
+        guard
+            let plist = try? PropertyListSerialization.propertyList(
+                from: plistData,
+                options: [],
+                format: nil
+            ) as? [String: Any]
+        else {
             APLogger.debug("bag: failed to parse plist, using default auth endpoint")
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
         }
@@ -78,13 +80,13 @@ public enum Bag {
         let authURLString = (plist["authenticateAccount"] as? String) ?? (urlBag["authenticateAccount"] as? String)
 
         guard let authURLString,
-              let authURL = normalizedAuthEndpoint(from: authURLString)
+            let authURL = normalizedAuthEndpoint(from: authURLString)
         else {
             APLogger.debug("bag: no authenticateAccount in plist, using default auth endpoint")
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
         }
 
-        APLogger.info("bag: auth endpoint resolved to \(authURL)")
+        APLogger.info("bag: auth endpoint resolved to \(APLogger.safeURL(authURL.absoluteString))")
         return BagOutput(authEndpoint: authURL)
     }
 
@@ -104,8 +106,8 @@ public enum Bag {
             }
             comps.path = path + "/"
         } else if comps.scheme?.lowercased() == "https", let host = comps.host?.lowercased() {
-            let legacyHost = host == "buy.itunes.apple.com" ||
-                host.range(of: "^p[0-9]+-buy[.]itunes[.]apple[.]com$", options: .regularExpression) != nil
+            let legacyHost =
+                host == "buy.itunes.apple.com" || host.range(of: "^p[0-9]+-buy[.]itunes[.]apple[.]com$", options: .regularExpression) != nil
             if legacyHost, comps.path == "/WebObjects/MZFinance.woa/wa/authenticate" {
                 comps.path += "/"
             }
@@ -118,8 +120,8 @@ public enum Bag {
     /// If the data is already a bare plist, return it as-is.
     private static func extractPlistData(from data: Data) -> Data {
         guard let xmlString = String(data: data, encoding: .utf8),
-              let startRange = xmlString.range(of: "<plist"),
-              let endRange = xmlString.range(of: "</plist>")
+            let startRange = xmlString.range(of: "<plist"),
+            let endRange = xmlString.range(of: "</plist>")
         else {
             return data
         }

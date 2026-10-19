@@ -26,10 +26,8 @@ jobs:
           xcodebuild -version
           swift --version
 
-      - name: Build command-line tools
-        run: |
-          swift build -c release --product ApplePackageTool
-          swift build -c release --product AppleSAPTool
+      - name: Build command-line tool
+        run: swift build -c release --product ApplePackageTool
 
       - name: Package artifact
         run: |
@@ -42,30 +40,24 @@ jobs:
           artifact_dir="${RUNNER_TEMP}/${artifact_name}"
           build_dir="$(swift build -c release --show-bin-path)"
           binary_path="${build_dir}/${product_name}"
-          sap_binary_path="${build_dir}/AppleSAPTool"
-          sap_resources="${build_dir}/ApplePackage_AppleSAPKit.bundle"
+          resources="${build_dir}/ApplePackage_ApplePackage.bundle"
 
           if [[ ! -x "${binary_path}" ]]; then
             echo "::error::Built binary ${product_name} was not found"
             exit 1
           fi
-          if [[ ! -d "${sap_resources}" ]]; then
-            echo "::error::AppleSAPKit static table resource bundle was not found"
-            exit 1
-          fi
-          if [[ ! -x "${sap_binary_path}" ]]; then
-            echo "::error::Built binary AppleSAPTool was not found"
+          if [[ ! -d "${resources}" ]]; then
+            echo "::error::ApplePackage resource bundle was not found"
             exit 1
           fi
 
           mkdir -p "${artifact_dir}"
           cp "${binary_path}" "${artifact_dir}/${product_name}"
-          cp "${sap_binary_path}" "${artifact_dir}/AppleSAPTool"
-          cp -R "${sap_resources}" "${artifact_dir}/"
+          cp -R "${resources}" "${artifact_dir}/"
 
           printf '%s\n' \
             "Requires macOS 15 or later." \
-            "Keep ApplePackage_AppleSAPKit.bundle next to both tools; it contains the SAP static tables." \
+            "Keep ApplePackage_ApplePackage.bundle next to ApplePackageTool; it contains the SAP static tables." \
             > "${artifact_dir}/README.txt"
 
           (cd "${RUNNER_TEMP}" && ditto -c -k --sequesterRsrc --keepParent "${artifact_name}" "${GITHUB_WORKSPACE}/${artifact_name}.zip")

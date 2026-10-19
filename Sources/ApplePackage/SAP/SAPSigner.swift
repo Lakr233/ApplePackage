@@ -1,8 +1,8 @@
-import CSAPRandom
+import CApplePackage
 import Foundation
 
 /// Stateful local signer. Calls on the same actor advance one shared RNG stream.
-/// Initialization consumes an existing handshake state; it does not contact Apple.
+/// Use `connect()` to establish fresh state with Apple before signing requests.
 public actor SAPSigner {
     private let cipher: SAPCipher
     private let session: SAPSession
@@ -20,15 +20,12 @@ public actor SAPSigner {
         try session.validate()
         let tables = try SAPStaticTables()
         cipher = try SAPCipher(source: [UInt8](session.source), tables: tables)
-        f2 = try SAPF2.deriveHead([UInt8](session.f2Input1), [UInt8](session.f2Input2), tables: tables)
-            + session.f2Tail
+        f2 = try SAPF2.deriveHead([UInt8](session.f2Input1), [UInt8](session.f2Input2), tables: tables) + session.f2Tail
         self.session = session
         self.platform = platform
         random.cursor = session.randomCursor
         withUnsafeMutableBytes(of: &random.words) { bytes in
-            for (index, word) in session.randomWords.enumerated() {
-                bytes.storeBytes(of: word, toByteOffset: 4 * index, as: UInt32.self)
-            }
+            for (index, word) in session.randomWords.enumerated() { bytes.storeBytes(of: word, toByteOffset: 4 * index, as: UInt32.self) }
         }
     }
 
@@ -38,7 +35,7 @@ public actor SAPSigner {
             sap_rng_f1(&random, session.seed30, UInt32(truncatingIfNeeded: session.f1MaterialAddress), &f1)
             var value: [UInt8] = [3] + SAPBytes.be32(platform) + SAPBytes.be32(256) + f1
             value += SAPBytes.be32(UInt32(f2.count)) + f2
-            value += SAPBytes.be32(159) + session.f3
+            value += SAPBytes.be32(UInt32(session.f3.count)) + session.f3
             value += [UInt8](repeating: 0, count: (16 - value.count % 16) % 16)
             blob = value
         }

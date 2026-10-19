@@ -20,9 +20,9 @@ enum SAPBytes {
         guard input.count.isMultiple(of: 2) else { throw SAPError.invalidInput("odd hex length") }
         func digit(_ byte: UInt8) throws -> UInt8 {
             switch byte {
-            case 48...57: return byte - 48
-            case 65...70: return byte - 55
-            case 97...102: return byte - 87
+            case 48 ... 57: return byte - 48
+            case 65 ... 70: return byte - 55
+            case 97 ... 102: return byte - 87
             default: throw SAPError.invalidInput("invalid hexadecimal byte")
             }
         }
@@ -35,11 +35,13 @@ enum SAPBytes {
         guard offset >= 0, width > 0, width <= 8, offset <= bytes.count - width else {
             throw SAPError.invalidInput("word outside saved region")
         }
-        return (0..<width).reduce(0) { $0 | (UInt64(bytes[offset + $1]) << (8 * $1)) }
+        return (0 ..< width).reduce(0) { $0 | (UInt64(bytes[offset + $1]) << (8 * $1)) }
     }
 
     static func be32(_ value: UInt32) -> [UInt8] {
-        [UInt8(truncatingIfNeeded: value >> 24), UInt8(truncatingIfNeeded: value >> 16),
-         UInt8(truncatingIfNeeded: value >> 8), UInt8(truncatingIfNeeded: value)]
+        [
+            UInt8(truncatingIfNeeded: value >> 24), UInt8(truncatingIfNeeded: value >> 16),
+            UInt8(truncatingIfNeeded: value >> 8), UInt8(truncatingIfNeeded: value),
+        ]
     }
 }

@@ -14,10 +14,10 @@ struct SAPTerminal: Sendable {
 
     init(wordTables: [[UInt32]], source: SAPSource, parameters: SAPParameters, updatedField: [UInt8]) throws {
         guard wordTables.count == 16, wordTables.allSatisfy({ $0.count == 256 }),
-              source.auxiliaryWords0.count == 256, !source.cache3.isEmpty,
-              parameters.terminalCoefficients.count == 16, parameters.terminalSeeds.count == 7,
-              updatedField.count == 16, source.selectors.count == 16,
-              source.selectors.allSatisfy({ $0 < 7 })
+            source.auxiliaryWords0.count == 256, !source.cache3.isEmpty,
+            parameters.terminalCoefficients.count == 16, parameters.terminalSeeds.count == 7,
+            updatedField.count == 16, source.selectors.count == 16,
+            source.selectors.allSatisfy({ $0 < 7 })
         else {
             throw SAPError.invalidInput("Invalid terminal parameters")
         }
@@ -54,7 +54,8 @@ struct SAPTerminal: Sendable {
             var word = wordTables[Self.tableOrder[lane]][index]
             if position < 0 {
                 // A[0] remains a session-dependent term of the four-point difference.
-                word ^= auxiliary[coupled ^ mixing] ^ auxiliary[mixing]
+                word ^=
+                    auxiliary[coupled ^ mixing] ^ auxiliary[mixing]
                     ^ auxiliary[coupled] ^ auxiliary[0]
             }
             word ^= laneKeys[lane]

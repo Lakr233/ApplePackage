@@ -1,11 +1,8 @@
-import AppleSAPKit
 import Foundation
 
 /// Stateful signing of the exact bytes sent in an authentication request.
 /// Reuse the same instance for retries, redirects, and verification-code calls.
-public protocol SAPRequestSigning: Sendable {
-    func sign(_ body: Data) async throws -> Data
-}
+public protocol SAPRequestSigning: Sendable { func sign(_ body: Data) async throws -> Data }
 
 extension SAPSigner: SAPRequestSigning {}
 
@@ -14,8 +11,7 @@ public enum AuthenticationError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .verificationCodeRequired:
-            return Strings.authRequiresVerificationCode + "\nPass --code when using the command-line tool."
+        case .verificationCodeRequired: return Strings.authRequiresVerificationCode
         }
     }
 }

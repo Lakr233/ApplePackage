@@ -42,27 +42,18 @@ swift run ApplePackageTool --help
 Authenticate with your Apple account:
 
 ```bash
-applepackage login <email> <password> [--code <2fa-code>]
+applepackage login <email> [<password>] [--code <2fa-code>]
 ```
 
-- `<email>`: Your Apple ID email address
-- `<password>`: Your Apple ID password
-- `--code`: Optional 2FA verification code
+The tool establishes a fresh SAP session with Apple and signs every login
+request automatically. Passwords default to `APPLEPACKAGE_PASSWORD` or a secure
+terminal prompt. A terminal also prompts for a six-digit verification code
+when required, retaining the same SAP session and cookies. Noninteractive
+callers can supply `--code`.
 
-To sign the actual login request with SAP, supply your original complete
-post-handshake context explicitly:
-
-```bash
-swift run ApplePackageTool login <email> <password> \
-  --sap-context /absolute/path/to/post-handshake.json
-```
-
-The tool does not generate a fresh SAP handshake or select a recorded context
-for you. In a terminal it can prompt for a verification code while retaining
-the same signer; noninteractive callers should supply `--code`. See
-[SAP integration](SAPIntegration.md) for the virtual IV address option, state
-lifetime, library injection, and the offline tests. A matching offline
-signature does not by itself establish that Apple accepts a live session.
+See [SAP integration](SAPIntegration.md) for library usage, protocol details,
+and validation. Login no longer accepts saved-context or virtual-address
+options. The library and CLI support Apple platforms only.
 
 ### Logout
 
@@ -135,7 +126,7 @@ let results = try await Searcher.search(term: "example", countryCode: "US", limi
 - [AsyncHTTPClient](https://github.com/swift-server/async-http-client.git)
 - [Swift Collections](https://github.com/apple/swift-collections.git)
 - [Swift Argument Parser](https://github.com/apple/swift-argument-parser)
-- [OpenSSL for Swift Package Manager](https://github.com/Lakr233/openssl-spm) via AppleSAPKit
+- [OpenSSL for Swift Package Manager](https://github.com/Lakr233/openssl-spm) for integrated SAP signing
 
 ## Acknowledgments
 

@@ -1,110 +1,108 @@
-# SAP-signed authentication
+# SAP authentication
 
-ApplePackage can sign authentication requests with `AppleSAPKit` when given a
-complete original `post_handshake` JSON context. A fresh SAP handshake is not
-implemented. No recorded context is selected automatically, and ordinary calls
-without a signer retain their unsigned behavior.
+SAP initialization, both setup exchanges, and request signing are integrated
+into `ApplePackage`. There is one library product and one command-line product,
+`ApplePackageTool`. `CApplePackage` is an internal implementation target.
 
-## Command line
-
-Build and run the login command with your own context:
+## Login
 
 ```sh
-swift run ApplePackageTool login 'you@example.com' 'YOUR_PASSWORD' \
-  --sap-context /absolute/path/to/post-handshake.json
+swift run ApplePackageTool login you@example.com
+# Or supply APPLEPACKAGE_PASSWORD in the process environment.
 ```
 
-When Apple requests a verification code, an interactive terminal prompts for
-it and continues with the same signer and advanced random state. In a
-noninteractive process, supply the code up front:
+The command retrieves Apple's SAP certificate over verified HTTPS, generates
+fresh local entropy and time inputs, sends protocol-200 setup, decrypts and
+validates the reply's echoed client material, and signs the exact final XML
+body in `X-Apple-ActionSignature`. Authentication and token rotation always
+establish SAP; setup or signing failure stops authentication.
 
-```sh
-swift run ApplePackageTool login 'you@example.com' 'YOUR_PASSWORD' \
-  --sap-context /absolute/path/to/post-handshake.json \
-  --code 123456
-```
-
-`--sap-iv-address` accepts a decimal or hexadecimal virtual address. Its default
-is `0x5000007fed90`, the layout used by the reconstructed signer. Supply the
-address corresponding to the saved context if its original layout differs.
-This is a salt in the recovered algorithm, not a host pointer to dereference.
-
-The input file supplies the encoded handle, heap, writable-data/RNG state, and
-allocator metadata. The command does not generate that state or update the
-input file. Starting a new process from the same file creates a new signer
-from the original state; it does not resume the previous process's RNG cursor.
-
-## Library injection
+The terminal prompts for a six-digit verification code. The same authentication
+actor retains its SAP signer, cookies, routing endpoint, and store information
+for that continuation. `--code` supports noninteractive callers. Passwords can
+be positional, read from `APPLEPACKAGE_PASSWORD`, or entered without terminal
+echo. `--guid` accepts exactly twelve hexadecimal characters.
 
 ```swift
 import ApplePackage
-import AppleSAPKit
-import Foundation
 
-let signer = try SAPSigner(snapshot: Data(contentsOf: contextURL))
-let account = try await Authenticator.authenticate(
-    email: email,
-    password: password,
-    code: verificationCode,
-    sapSigner: signer
-)
+let session = try await Authenticator()
+do {
+    let account = try await session.authenticate(email: email, password: password)
+    // Store the account securely.
+} catch AuthenticationError.verificationCodeRequired {
+    let account = try await session.authenticate(email: email, password: password, code: verificationCode)
+    // Store the account securely.
+}
 ```
 
-Retain the same signer if a verification-code challenge requires another
-`authenticate` call. Redirects and internal retries already retain it. The
-optional parameter is also available on `rotatePasswordToken`.
+The static `Authenticator.authenticate` convenience creates a fresh actor for
+one call. Retain an instance when continuing a verification challenge.
+Concurrent authentication calls on the same instance are rejected.
 
-`SAPRequestSigning` supports another implementation or an injected test double.
-Its async `sign(Data)` operation receives the exact final XML request body.
-The request sends the returned bytes as base64 in
-`X-Apple-ActionSignature`; the body is not serialized again after signing.
-Verbose request and response logging redacts signature headers.
+## Implementation
 
-## Offline verification
+The setup RNG and whitening operations are repository-authored C arithmetic.
+Swift owns RSA-OAEP/SHA-1, AES-128-CBC, HMAC, record parsing, F2, the session
+cipher, and signature assembly. Standard cryptography uses statically linked
+OpenSSL. No Apple private framework, original executable, runtime Python,
+instruction interpreter, or saved handshake is used by the login path.
 
-```sh
-swift test --filter SAPAuthenticationRequestTests
+Address-like constants are integer salts in the reconstructed algorithm;
+they are never dereferenced. Bundled tables are fixed algorithm data, checked
+against SHA-256 hashes. Session bytes, RNG state, signatures, and credentials
+are not production resources. The low-level logical-session and research
+snapshot decoders remain available for offline compatibility checks only.
+
+```text
+blob = 03 || BE32(platform) || BE32(256) || F1
+          || BE32(len(F2)) || F2 || BE32(len(F3)) || F3 || zero padding to 16 bytes
+d = SHA1(blob || body)
+a = E(IV XOR d[0:16])
+tag = E(a XOR (d[16:20] || 12 zero bytes))
+signature = 02 || IV || tag || BE32(len(blob)) || blob
 ```
 
-These tests require no account and open no socket. They run the actual
-AsyncHTTPClient body producer into memory, compare its bytes with a recording
-signer, check header encoding, and exercise repeated/redirected/verification
-requests with one stateful signer. They also cover unsigned calls, signing
-failure, and signature-header redaction. The SAP package has separate
-algorithm/reference-vector checks.
+`SAPSigner.connect()` also exposes fresh setup for clients needing only signing.
+One signer actor advances one RNG stream. Signatures must remain paired with
+the exact body supplied to `sign`.
 
-To run the request tests together with the public synthetic/resource/input
-validation tests, using the same selection as CI:
+## Verification
 
 ```sh
-swift test --filter 'SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests'
-```
-
-The release archive includes `ApplePackageTool`, `AppleSAPTool`, and their
-shared `ApplePackage_AppleSAPKit.bundle`. Keep that resource bundle next to the
-executables when moving or installing them.
-
-## Explicitly enabled live observation
-
-`SAPLiveProbeTests` skips by default. A developer can explicitly provide a
-private context to send one invented-account request through the real
-AsyncHTTPClient request path:
-
-```sh
-APPLEPACKAGE_SAP_PROBE_CONTEXT=/private/path/to/post-handshake.json \
+Scripts/run-tests.sh unit
+APPLEPACKAGE_SAP_LIVE_PROBE=1 APPLEPACKAGE_SAP_PROBE_CONTROLS=1 \
   swift test --filter SAPLiveProbeTests
 ```
 
-Add `APPLEPACKAGE_SAP_PROBE_CONTROLS=1` to send unsigned and corrupted-tag
-controls as well, for a maximum of three variants. Redirects share a total
-budget of three, and each destination must use HTTPS on an Apple domain. The
-probe uses normal certificate verification, a random GUID, and an invented
-`example.invalid` account; it does not load saved account credentials or a
-system MAC address. It prints only sanitized response summaries. Contexts,
-credentials, request bodies, and signatures must stay out of the repository.
+Offline tests compare four deterministic fresh exchanges with the independent
+Python arithmetic implementation, including negative/overflowing Unix seconds,
+zero and maximal entropy words, RSA serial sign padding, complete request
+bytes, retained RNG state, and synthetic decrypted session fields. All fixture
+certificates and server replies are synthetic. Malformed and unrelated replies
+are rejected. Existing synthetic tests cover consecutive complete signatures,
+F2/cipher vectors, serialization, resource hashes, and bounded input handling.
 
-A matching offline signature establishes reconstruction compatibility with
-the recorded native reference. It does not establish that Apple accepts a new
-live session or that account authentication succeeds. A live test must report
-protocol/signature rejection separately from an ordinary authentication error;
-receiving an HTTP response alone is insufficient evidence.
+Request tests cover exact body/signature pairing, state advancement, signing
+failure, HTTPS destination validation, and log redaction. Parser tests cover
+password sources, code/GUID validation, and removed SAP options.
+
+The opt-in live probe creates fresh SAP state and uses only invented
+`example.invalid` credentials with a random GUID. It prints sanitized response
+summaries. On 2026-10-20, the signed request returned HTTP 200 with a business
+plist; unsigned and corrupted-tag controls returned HTTP 403. This establishes
+signature acceptance for the tested service, not account authentication or
+verification-code delivery. The generic `MZFinance.BadLogin.Configurator_message`
+is also returned for invented accounts; entering the verification-code branch
+alone does not establish that a code was delivered.
+
+Verbose logs omit URL queries and redact every header except a small set of
+public transport metadata. Never commit real account identifiers, passwords,
+codes, cookies, tokens, signatures, or server-issued SAP state.
+
+## Distribution
+
+Release archives contain `ApplePackageTool` and
+`ApplePackage_ApplePackage.bundle`; keep them together after extraction.
+The CLI requires macOS 15+. The library supports iOS 18+, Mac Catalyst 18+,
+tvOS 18+, and visionOS 2+, using Swift 6.2 or later. Linux is unsupported.

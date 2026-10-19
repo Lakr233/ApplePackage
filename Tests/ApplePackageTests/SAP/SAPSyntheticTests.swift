@@ -1,11 +1,24 @@
 import Foundation
 import XCTest
-@testable import AppleSAPKit
+@testable import ApplePackage
 
 /// All variable inputs here are synthetic and have never been server-issued.
 /// The expected outputs were generated with the independently recovered Python
 /// direct algorithm, using only these new inputs and the fixed algorithm tables.
 final class SAPSyntheticTests: XCTestCase {
+    func testSignatureCarriesVariableLengthServerRecord() async throws {
+        let original = try SyntheticSession.make()
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+        let record = Data(repeating: 0xa5, count: 26)
+        object["f3"] = record.base64EncodedString()
+        let session = try JSONDecoder().decode(SAPSession.self, from: JSONSerialization.data(withJSONObject: object))
+        let signer = try SAPSigner(session: session)
+        let signature = try await signer.sign(Data())
+        let lengthOffset = 37 + 9 + 256 + 4 + 16 + session.f2Tail.count
+        XCTAssertEqual(Array(signature[lengthOffset ..< lengthOffset + 4]), [0, 0, 0, 26])
+        XCTAssertEqual(signature[lengthOffset + 4 ..< lengthOffset + 4 + record.count], record)
+    }
+
     func testThreeConsecutiveCompleteSignatures() async throws {
         let session = try SyntheticSession.make()
         XCTAssertEqual(
@@ -80,7 +93,7 @@ enum SyntheticSession {
         var random = XorShift32(state: 0x53595031)
         var source = random.bytes(576)
         source[0xfa] = source[0xca] ^ 10
-        source[0xf3] = source[0xc3] ^ 147 // inverse cache length2707
+        source[0xf3] = source[0xc3] ^ 147  // inverse cache length2707
         let input1 = random.bytes(16)
         let input2 = random.bytes(16)
         let tail = random.bytes(7)

@@ -37,7 +37,7 @@ private struct OriginalSnapshot: Decodable {
 enum SAPSnapshot {
     static func decode(_ snapshot: Data, ivAddress: UInt64) throws -> SAPSession {
         let saved = try JSONDecoder().decode(OriginalSnapshot.self, from: snapshot)
-        guard saved.phase == "post_handshake", (0...67108864).contains(saved.dataSize) else {
+        guard saved.phase == "post_handshake", (0 ... 67108864).contains(saved.dataSize) else {
             throw SAPError.invalidInput("requires complete post_handshake snapshot")
         }
         let heap = try SAPBytes.hex(saved.heapHex)
@@ -47,12 +47,13 @@ enum SAPSnapshot {
             guard patch.offset >= 0, patch.offset <= data.count - bytes.count else {
                 throw SAPError.invalidInput("data patch outside saved region")
             }
-            data.replaceSubrange(patch.offset..<patch.offset + bytes.count, with: bytes)
+            data.replaceSubrange(patch.offset ..< patch.offset + bytes.count, with: bytes)
         }
         func read(_ address: UInt64, _ width: Int) throws -> UInt64 {
             for (base, bytes) in [(saved.heapBase, heap), (saved.dataBase, data)] {
                 if address >= base, address - base <= UInt64(bytes.count),
-                   width <= bytes.count - Int(address - base) {
+                    width <= bytes.count - Int(address - base)
+                {
                     return try SAPBytes.word(bytes, at: Int(address - base), width: width)
                 }
             }
@@ -60,24 +61,25 @@ enum SAPSnapshot {
         }
         func memory(_ address: UInt64, _ count: Int) throws -> Data {
             guard count >= 0, address >= saved.heapBase, address - saved.heapBase <= UInt64(heap.count),
-                  count <= heap.count - Int(address - saved.heapBase) else {
+                count <= heap.count - Int(address - saved.heapBase)
+            else {
                 throw SAPError.invalidInput("session pointer outside saved heap")
             }
             let offset = Int(address - saved.heapBase)
-            return Data(heap[offset..<offset + count])
+            return Data(heap[offset ..< offset + count])
         }
         let header = (saved.context ^ 0x751f469598842008) &+ 0x8ae0b96a677bdff8
         let pointer = try read(header &+ 0x20, 8)
         let selector = try read(saved.dataBase &+ 0x46cd4, 4) & 0x5b31e844
         let seedAddress = try read(saved.dataBase &+ 0x46cc8, 8) &+ selector
         let key = (UInt32(truncatingIfNeeded: pointer) &* 0x5b31e847) ^ UInt32(try read(seedAddress, 4))
-        var raw = try (0..<0x310).map { UInt8(try read(pointer &+ UInt64($0), 1)) }
-        for i in 1..<98 {
+        var raw = try (0 ..< 0x310).map { UInt8(try read(pointer &+ UInt64($0), 1)) }
+        for i in 1 ..< 98 {
             let position = Int(((key &+ UInt32(i)) ^ key) &* 0x01000193) % i
-            let left = Array(raw[8 * i..<8 * i + 8])
-            let right = Array(raw[8 * position..<8 * position + 8])
-            raw.replaceSubrange(8 * i..<8 * i + 8, with: right)
-            raw.replaceSubrange(8 * position..<8 * position + 8, with: left)
+            let left = Array(raw[8 * i ..< 8 * i + 8])
+            let right = Array(raw[8 * position ..< 8 * position + 8])
+            raw.replaceSubrange(8 * i ..< 8 * i + 8, with: right)
+            raw.replaceSubrange(8 * position ..< 8 * position + 8, with: left)
         }
         for i in raw.indices {
             let lowKey = Int(key & 255)
@@ -87,7 +89,7 @@ enum SAPSnapshot {
             try SAPBytes.word(raw, at: offset, width: width)
         }
         let f2Length = Int(try word(0x288, 4))
-        guard (16...32).contains(f2Length), try word(0x230, 4) == 159 else {
+        guard (16 ... 32).contains(f2Length), try word(0x230, 4) == 159 else {
             throw SAPError.invalidInput("decoded F2/F3 length mismatch")
         }
         let source = try memory(word(0x2a0), 576)
@@ -123,12 +125,13 @@ enum SAPSnapshot {
         }
         _ = try allocate(UInt64(f2Length + 4))
         let firstMaterial = try allocate(256) &+ 68
-        let words = try (0..<624).map { UInt32(try SAPBytes.word(data, at: 0x46ce8 + 4 * $0, width: 4)) }
-        return try SAPSession(source: source, f2Input1: f2Input1, f2Input2: f2Input2,
-                              f2Tail: Data(tail), f3: Data(f3), randomWords: words,
-                              randomCursor: UInt32(SAPBytes.word(data, at: 0x476b4, width: 4)),
-                              seed30: UInt32(SAPBytes.word(heap, at: 0x30, width: 4)),
-                              seed54: UInt32(SAPBytes.word(heap, at: 0x54, width: 4)),
-                              f1MaterialAddress: firstMaterial, ivAddress: ivAddress)
+        let words = try (0 ..< 624).map { UInt32(try SAPBytes.word(data, at: 0x46ce8 + 4 * $0, width: 4)) }
+        return try SAPSession(
+            source: source, f2Input1: f2Input1, f2Input2: f2Input2,
+            f2Tail: Data(tail), f3: Data(f3), randomWords: words,
+            randomCursor: UInt32(SAPBytes.word(data, at: 0x476b4, width: 4)),
+            seed30: UInt32(SAPBytes.word(heap, at: 0x30, width: 4)),
+            seed54: UInt32(SAPBytes.word(heap, at: 0x54, width: 4)),
+            f1MaterialAddress: firstMaterial, ivAddress: ivAddress)
     }
 }

@@ -172,7 +172,8 @@ struct SAPSource: Sendable {
     ) -> Int {
         var key: UInt8 = 0
         for byte in 0 ..< length {
-            key ^= source[base + position + byte]
+            key ^=
+                source[base + position + byte]
                 ^ padColumns[column][(position + byte) % 16] ^ padRows[column][row]
         }
         return Int(key)

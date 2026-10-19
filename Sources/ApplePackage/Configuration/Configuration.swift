@@ -65,10 +65,7 @@ public enum Configuration {
             // deviceIdentifier has its own lock-taking accessor, so initialize
             // this default without holding the configuration lock.
             precondition(!deviceIdentifier.isEmpty, "deviceIdentifier must be set")
-            var configuration = TLSConfiguration.makeClientConfiguration()
-            #if DEBUG
-                configuration.certificateVerification = .none
-            #endif
+            let configuration = TLSConfiguration.makeClientConfiguration()
             return state.withLock { state in
                 if let configured = state.tlsConfiguration { return configured }
                 state.tlsConfiguration = configuration

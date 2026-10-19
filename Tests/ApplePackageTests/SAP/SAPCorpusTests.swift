@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import AppleSAPKit
+@testable import ApplePackage
 
 /// Optional local-only regression. No captured session/source/signature is part
 /// of this repository. Set SAP_CORPUS_ROOT to a separate ipatool_sap research tree.
@@ -16,7 +16,8 @@ final class SAPCorpusTests: XCTestCase {
         var holdoutCount = 0
         for session in 0 ..< 8 {
             let suffix = String(format: "%02d", session)
-            let saved = try Data(contentsOf: root.appendingPathComponent("reconstruction/validation/fixtures/allocator/session-\(suffix).json"))
+            let saved = try Data(
+                contentsOf: root.appendingPathComponent("reconstruction/validation/fixtures/allocator/session-\(suffix).json"))
             let signer = try SAPSigner(snapshot: saved)
             let ordered = cases.filter { $0.session == session }.sorted { $0.index < $1.index }
             XCTAssertEqual(ordered.count, 128)
@@ -31,7 +32,8 @@ final class SAPCorpusTests: XCTestCase {
             }
             let calls = await signer.calls
             XCTAssertEqual(calls, 128)
-            let references = try jsonLines(HoldoutCase.self, root.appendingPathComponent("reconstruction/implementation/fixtures/holdout/reference-\(suffix).jsonl"))
+            let references = try jsonLines(
+                HoldoutCase.self, root.appendingPathComponent("reconstruction/implementation/fixtures/holdout/reference-\(suffix).jsonl"))
             XCTAssertEqual(references.count, 16)
             for (index, item) in references.enumerated() {
                 // The external holdout oracle started a fresh session per body.

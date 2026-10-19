@@ -5,7 +5,9 @@ struct SAPCipher: Sendable {
     private static let firstWordTables = [28, 39, 50, 61, 28, 39, 50, 61, 56, 67, 6, 17, 56, 67, 6, 17]
     private static let outputColumns = [1, 3, 1, 2, 3, 3, 2, 3, -1, 0, 2, 0, 0, 2, 1, 0, 1]
     private static let outputShifts = [24, 0, 8, 0, 8, 24, 24, 16, 0, 8, 8, 16, 0, 16, 0, 24, 16]
-    private static let outputXors: [UInt8] = [0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0, 0xA0, 0x2D, 0x75, 0x32, 0, 0x2D, 0xBB, 0x2D]
+    private static let outputXors: [UInt8] = [
+        0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0, 0xA0, 0x2D, 0x75, 0x32, 0, 0x2D, 0xBB, 0x2D,
+    ]
 
     private let parameters: SAPParameters
     private let initial: SAPInitialEncoder
@@ -16,8 +18,8 @@ struct SAPCipher: Sendable {
 
     init(source: [UInt8], tables: SAPStaticTables) throws {
         guard tables.byteTables.count >= 200, tables.byteTables.allSatisfy({ $0.count == 256 }),
-              tables.wordTables.count >= 72, tables.wordTables.allSatisfy({ $0.count == 256 }),
-              tables.carryMasks.map(\.count) == [233, 239, 241, 251]
+            tables.wordTables.count >= 72, tables.wordTables.allSatisfy({ $0.count == 256 }),
+            tables.carryMasks.map(\.count) == [233, 239, 241, 251]
         else {
             throw SAPError.invalidInput("Invalid E static tables")
         }
