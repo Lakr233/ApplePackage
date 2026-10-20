@@ -8,7 +8,6 @@
 import AsyncHTTPClient
 import Foundation
 import NIOSSL
-import Synchronization
 
 public enum Configuration {
     private struct State: Sendable {
@@ -18,7 +17,7 @@ public enum Configuration {
         var homePath = Configuration.defaultHomePath()
     }
 
-    private static let state = Mutex(State())
+    private static let state = LockedState(State())
 
     /**
      DeviceIdentifier is a unique identifier for your device.

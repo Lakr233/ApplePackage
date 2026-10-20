@@ -102,7 +102,7 @@ codes, cookies, tokens, signatures, or server-issued SAP state.
 
 ## Distribution
 
-Release archives contain `ApplePackageTool` and
-`ApplePackage_ApplePackage.bundle`; keep them together after extraction.
-The CLI requires macOS 15+. The library supports iOS 18+, Mac Catalyst 18+,
-tvOS 18+, and visionOS 2+, using Swift 6.2 or later. Linux is unsupported.
+Release archives contain `ApplePackageTool`, `ApplePackage_ApplePackage.bundle`,
+and Swift runtime libraries for older macOS versions; keep them together after extraction.
+The CLI requires macOS 11+. The library supports iOS 15+, Mac Catalyst 15+,
+tvOS 15+, and visionOS 1+, using Swift 6.2 or later. Linux is unsupported.

@@ -36,6 +36,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Select Swift 6.2 toolchain
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
       - name: Report runner toolchain
         run: |
           sw_vers
@@ -49,6 +52,6 @@ jobs:
             -destination "${{ matrix.destination }}" \
             build 2>&1 | xcbeautify
 
-      - name: Test SAP algorithms and request integration without network or credentials
+      - name: Run offline unit tests
         if: matrix.platform == 'macOS'
-        run: swift test --filter 'SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests|SAPHandshakeTests|LoginArgumentsTests'
+        run: swift test --filter 'ApplePackageAccountTests|ApplePackageConfigurationTests|LockedStateTests|SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests|SAPHandshakeTests|LoginArgumentsTests'

@@ -8,7 +8,6 @@
 import ApplePackage
 import ArgumentParser
 import Foundation
-import Synchronization
 
 struct Download: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
@@ -108,7 +107,17 @@ struct Download: AsyncParsableCommand, Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let response: URLResponse = try await withCheckedThrowingContinuation { continuation in
+            URLSession.shared.dataTask(with: request) { _, response, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let response {
+                    continuation.resume(returning: response)
+                } else {
+                    continuation.resume(throwing: URLError(.badServerResponse))
+                }
+            }.resume()
+        }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(domain: "InvalidResponse", code: 0, userInfo: nil)
         }
@@ -168,14 +177,14 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
     private let totalSize: Int64
     private let progressHandler: @Sendable (Int64, Int64) -> Void
 
-    private struct State {
+    private struct State: Sendable {
         var fileHandle: FileHandle?
         var continuation: CheckedContinuation<Void, Error>?
         var downloadedBytes: Int64
         var lastProgressUpdate = Date()
     }
 
-    private let state: Mutex<State>
+    private let state: LockedState<State>
 
     init(
         fileURL: URL,
@@ -187,7 +196,7 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
         self.startByte = startByte
         self.totalSize = totalSize
         self.progressHandler = progressHandler
-        state = Mutex(State(downloadedBytes: startByte))
+        state = LockedState(State(downloadedBytes: startByte))
     }
 
     func download(request: URLRequest) async throws {

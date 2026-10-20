@@ -7,7 +7,6 @@
 
 import Foundation
 import Logging
-import Synchronization
 
 public enum APLogger {
     private struct State: Sendable {
@@ -15,7 +14,7 @@ public enum APLogger {
         var logger = Logger(label: "com.applepackage")
     }
 
-    private static let state = Mutex(State())
+    private static let state = LockedState(State())
 
     public static var verbose: Bool {
         get { state.withLock { $0.verbose } }
