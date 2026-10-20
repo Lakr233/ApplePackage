@@ -31,7 +31,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .target(name: "ApplePackage"),
-            ]
+            ],
         ),
         .target(
             name: "ApplePackage",
@@ -43,10 +43,10 @@ let package = Package(
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "Logging", package: "swift-log"),
             ],
-            resources: [.process("SAP/Resources")]
+            resources: [.process("SAP/Resources")],
         ),
         .testTarget(name: "ApplePackageTests", dependencies: ["ApplePackage"], resources: [.copy("SAP/Fixtures")]),
         .testTarget(name: "ApplePackageToolTests", dependencies: ["ApplePackageTool"]),
     ],
-    swiftLanguageModes: [.v6]
+    swiftLanguageModes: [.v6],
 )

@@ -28,7 +28,7 @@ struct SAPCertificate {
             }
         }
         guard let selected, let serialNumber = X509_get_serialNumber(selected), let serialBytes = ASN1_STRING_get0_data(serialNumber),
-            let key = X509_get_pubkey(selected)
+              let key = X509_get_pubkey(selected)
         else { throw SAPError.invalidInput("SAP container has no usable X.509 certificate") }
         defer { EVP_PKEY_free(key) }
         let serialLength = Int(ASN1_STRING_length(serialNumber))
@@ -44,12 +44,12 @@ struct SAPCertificate {
             BN_free(e)
         }
         guard EVP_PKEY_get_bn_param(key, "n", &n) == 1, EVP_PKEY_get_bn_param(key, "e", &e) == 1, let n, let e, BN_num_bits(n) == 2048,
-            BN_num_bits(e) >= 2, BN_is_odd(e) == 1
+              BN_num_bits(e) >= 2, BN_is_odd(e) == 1
         else { throw SAPError.invalidInput("SAP certificate must contain an RSA-2048 public key") }
         var modulus = [UInt8](repeating: 0, count: 256)
         var exponent = [UInt8](repeating: 0, count: Int((BN_num_bits(e) + 7) / 8))
         guard BN_bn2binpad(n, &modulus, Int32(modulus.count)) == modulus.count,
-            BN_bn2binpad(e, &exponent, Int32(exponent.count)) == exponent.count
+              BN_bn2binpad(e, &exponent, Int32(exponent.count)) == exponent.count
         else { throw SAPError.cryptoFailure }
         self.modulus = modulus
         self.exponent = exponent

@@ -12,7 +12,7 @@ public actor SAPSigner {
     private var blob: [UInt8]?
     public private(set) var calls: UInt64 = 0
 
-    public init(snapshot: Data, ivAddress: UInt64 = 0x5000007fed90, platform: UInt32 = 1) throws {
+    public init(snapshot: Data, ivAddress: UInt64 = 0x5000_007F_ED90, platform: UInt32 = 1) throws {
         try self.init(session: SAPSession(snapshot: snapshot, ivAddress: ivAddress), platform: platform)
     }
 
@@ -25,7 +25,9 @@ public actor SAPSigner {
         self.platform = platform
         random.cursor = session.randomCursor
         withUnsafeMutableBytes(of: &random.words) { bytes in
-            for (index, word) in session.randomWords.enumerated() { bytes.storeBytes(of: word, toByteOffset: 4 * index, as: UInt32.self) }
+            for (index, word) in session.randomWords.enumerated() {
+                bytes.storeBytes(of: word, toByteOffset: 4 * index, as: UInt32.self)
+            }
         }
     }
 

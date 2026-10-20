@@ -29,7 +29,7 @@ public enum PackagePlatformValidator {
             guard let plist = try PropertyListSerialization.propertyList(
                 from: data,
                 options: [],
-                format: nil
+                format: nil,
             ) as? [String: Any] else {
                 continue
             }

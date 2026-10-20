@@ -7,8 +7,8 @@
 
 import ApplePackage
 import ArgumentParser
-import Foundation
 import Darwin
+import Foundation
 
 struct Login: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(commandName: "login", abstract: "Sign in to an Apple Account")
@@ -28,7 +28,9 @@ struct Login: AsyncParsableCommand, Sendable {
     mutating func validate() throws {
         email = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !email.isEmpty else { throw ValidationError("Email address must not be empty.") }
-        if let password, password.isEmpty { throw ValidationError("Password must not be empty.") }
+        if let password, password.isEmpty {
+            throw ValidationError("Password must not be empty.")
+        }
     }
 
     func run() async throws {
@@ -63,8 +65,12 @@ struct Login: AsyncParsableCommand, Sendable {
     }
 
     private func resolvePassword() throws -> String {
-        if let password { return password }
-        if let password = ProcessInfo.processInfo.environment["APPLEPACKAGE_PASSWORD"], !password.isEmpty { return password }
+        if let password {
+            return password
+        }
+        if let password = ProcessInfo.processInfo.environment["APPLEPACKAGE_PASSWORD"], !password.isEmpty {
+            return password
+        }
         guard isatty(STDIN_FILENO) != 0 else {
             throw ValidationError("Provide a password argument or set APPLEPACKAGE_PASSWORD when no terminal is available.")
         }

@@ -21,29 +21,29 @@ extension EntityType {
     var entityValue: String {
         switch self {
         case .iPhone:
-            return "software"
+            "software"
         case .iPad:
-            return "iPadSoftware"
+            "iPadSoftware"
         case .appleTV:
-            return "tvSoftware"
+            "tvSoftware"
         }
     }
 
     var searchEntityValue: String {
         switch self {
         case .iPhone, .iPad:
-            return entityValue
+            entityValue
         case .appleTV:
-            return "software,tvSoftware"
+            "software,tvSoftware"
         }
     }
 
     var metadataPlatformValue: String {
         switch self {
         case .iPhone, .iPad:
-            return "enterprisestore"
+            "enterprisestore"
         case .appleTV:
-            return "atv9"
+            "atv9"
         }
     }
 }

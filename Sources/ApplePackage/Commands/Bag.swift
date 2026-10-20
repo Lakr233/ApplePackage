@@ -16,7 +16,7 @@ public enum Bag {
     private static let defaultAuthEndpoint = "https://auth.itunes.apple.com/auth/v1/native/fast/"
 
     public static func fetchBag(
-        redirectConfiguration: HTTPClient.Configuration.RedirectConfiguration = .follow(max: 8, allowCycles: false)
+        redirectConfiguration: HTTPClient.Configuration.RedirectConfiguration = .follow(max: 8, allowCycles: false),
     ) async throws -> BagOutput {
         let deviceIdentifier = Configuration.deviceIdentifier
 
@@ -43,7 +43,7 @@ public enum Bag {
         let request = try HTTPClient.Request(
             url: url.absoluteString,
             method: .GET,
-            headers: .init(headers)
+            headers: .init(headers),
         )
 
         let response = try await client.execute(request: request).get()
@@ -51,11 +51,11 @@ public enum Bag {
         APLogger.logResponse(
             status: response.status.code,
             headers: response.headers.map { ($0.name, $0.value) },
-            bodySize: response.body?.readableBytes
+            bodySize: response.body?.readableBytes,
         )
 
         guard var body = response.body,
-            let data = body.readData(length: body.readableBytes)
+              let data = body.readData(length: body.readableBytes)
         else {
             APLogger.debug("bag: empty response body, using default auth endpoint")
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
@@ -67,7 +67,7 @@ public enum Bag {
             let plist = try? PropertyListSerialization.propertyList(
                 from: plistData,
                 options: [],
-                format: nil
+                format: nil,
             ) as? [String: Any]
         else {
             APLogger.debug("bag: failed to parse plist, using default auth endpoint")
@@ -80,7 +80,7 @@ public enum Bag {
         let authURLString = (plist["authenticateAccount"] as? String) ?? (urlBag["authenticateAccount"] as? String)
 
         guard let authURLString,
-            let authURL = normalizedAuthEndpoint(from: authURLString)
+              let authURL = normalizedAuthEndpoint(from: authURLString)
         else {
             APLogger.debug("bag: no authenticateAccount in plist, using default auth endpoint")
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
@@ -120,8 +120,8 @@ public enum Bag {
     /// If the data is already a bare plist, return it as-is.
     private static func extractPlistData(from data: Data) -> Data {
         guard let xmlString = String(data: data, encoding: .utf8),
-            let startRange = xmlString.range(of: "<plist"),
-            let endRange = xmlString.range(of: "</plist>")
+              let startRange = xmlString.range(of: "<plist"),
+              let endRange = xmlString.range(of: "</plist>")
         else {
             return data
         }

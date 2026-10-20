@@ -18,7 +18,7 @@ public enum Searcher {
         term: String,
         countryCode: String,
         limit: Int = 5,
-        entityType: EntityType = .iPhone
+        entityType: EntityType = .iPhone,
     ) async throws -> [Software] {
         let client = Configuration.makeHTTPClient(redirectConfiguration: .follow(max: 8, allowCycles: false))
         defer { _ = client.shutdown() }
@@ -27,7 +27,7 @@ public enum Searcher {
             term: term,
             countryCode: countryCode,
             limit: limit,
-            entityType: entityType
+            entityType: entityType,
         )
         let response = try await client.execute(request: request).get()
 
@@ -47,19 +47,19 @@ public enum Searcher {
         term: String,
         countryCode: String,
         limit: Int,
-        entityType: EntityType
+        entityType: EntityType,
     ) throws -> HTTPClient.Request {
         let url = try createSearchURL(
             term: term,
             countryCode: countryCode,
             limit: limit,
-            entityType: entityType
+            entityType: entityType,
         )
         return try .init(
             url: url.absoluteString,
             method: .GET,
             headers: .init([("User-Agent", Configuration.userAgent)]),
-            body: .none
+            body: .none,
         )
     }
 
@@ -67,7 +67,7 @@ public enum Searcher {
         term: String,
         countryCode: String,
         limit: Int,
-        entityType: EntityType
+        entityType: EntityType,
     ) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"

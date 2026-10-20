@@ -17,39 +17,39 @@ final class ApplePackagePurchaseTests: XCTestCase {
     func testPurchaseFailureTypeMessages() {
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "5002", customerMessage: nil),
-            "app is already purchased (failureType: 5002)"
+            "app is already purchased (failureType: 5002)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "2040", customerMessage: nil),
-            "app is already purchased, unavailable, or delisted (failureType: 2040)"
+            "app is already purchased, unavailable, or delisted (failureType: 2040)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "2059", customerMessage: nil),
-            "app is unavailable, delisted, unavailable in this storefront, or not purchased (failureType: 2059)"
+            "app is unavailable, delisted, unavailable in this storefront, or not purchased (failureType: 2059)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "1010", customerMessage: nil),
-            "invalid store or app unavailable in this storefront (failureType: 1010)"
+            "invalid store or app unavailable in this storefront (failureType: 1010)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "2034", customerMessage: nil),
-            "password token is expired (failureType: 2034)"
+            "password token is expired (failureType: 2034)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "2042", customerMessage: nil),
-            "password token is expired (failureType: 2042)"
+            "password token is expired (failureType: 2042)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "2019", customerMessage: nil),
-            "paid apps cannot be purchased directly (failureType: 2019)"
+            "paid apps cannot be purchased directly (failureType: 2019)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "9610", customerMessage: nil),
-            "license not found or app id is invalid (failureType: 9610)"
+            "license not found or app id is invalid (failureType: 9610)",
         )
         XCTAssertEqual(
             Strings.purchaseFailureMessage(failureType: "", customerMessage: "Purchase failed from server"),
-            "Purchase failed from server (failureType: )"
+            "Purchase failed from server (failureType: )",
         )
     }
 
@@ -91,7 +91,7 @@ final class ApplePackagePurchaseTests: XCTestCase {
                     minimumOsVersion: "14.0",
                     releaseDate: "2023-01-01T00:00:00Z",
                     formattedPrice: "$4.99",
-                    primaryGenreName: "Utilities"
+                    primaryGenreName: "Utilities",
                 )
                 try await Purchase.purchase(account: &account, app: paidApp)
                 XCTFail("should fail with paid app")

@@ -11,7 +11,7 @@ public enum AuthenticationError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .verificationCodeRequired: return Strings.authRequiresVerificationCode
+        case .verificationCodeRequired: Strings.authRequiresVerificationCode
         }
     }
 }

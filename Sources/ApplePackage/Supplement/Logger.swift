@@ -27,7 +27,9 @@ public enum APLogger {
         set { state.withLock { $0.logger = newValue } }
     }
 
-    static func info(_ message: String) { logger.info("\(message)") }
+    static func info(_ message: String) {
+        logger.info("\(message)")
+    }
 
     static func debug(_ message: String) {
         let snapshot = state.withLock { ($0.verbose, $0.logger) }
@@ -35,7 +37,9 @@ public enum APLogger {
         snapshot.1.debug("\(message)")
     }
 
-    static func error(_ message: String) { logger.error("\(message)") }
+    static func error(_ message: String) {
+        logger.error("\(message)")
+    }
 
     static func logRequest(method: String, url: String, headers: [(String, String)] = []) {
         guard verbose else { return }
@@ -50,13 +54,17 @@ public enum APLogger {
     static func logResponse(status: UInt, headers: [(String, String)] = [], bodySize: Int? = nil) {
         guard verbose else { return }
         var msg = "<<< \(status)"
-        if let bodySize = bodySize { msg += " (\(bodySize) bytes)" }
-        for (name, value) in headers { msg += "\n    \(name): \(safeHeaderValue(name: name, value: value))" }
+        if let bodySize {
+            msg += " (\(bodySize) bytes)"
+        }
+        for (name, value) in headers {
+            msg += "\n    \(name): \(safeHeaderValue(name: name, value: value))"
+        }
         debug(msg)
     }
 
     static func safeHeaderValue(name: String, value: String) -> String {
-        let publicHeaders: Set<String> = ["accept", "content-type", "content-length", "user-agent", "cache-control"]
+        let publicHeaders: Set = ["accept", "content-type", "content-length", "user-agent", "cache-control"]
         return publicHeaders.contains(name.lowercased()) ? value : "<redacted>"
     }
 

@@ -37,12 +37,13 @@ struct SAPHandshakeTests {
     }
 
     @Test
-    func matchesIndependentPythonSetupVectors() throws {
+    func `matches independent python setup vectors`() throws {
         let fixture = try fixture()
         for vector in fixture.cases {
             let pending = try SAPHandshake(
                 certificate: Data(bytes(fixture.certificate)), entropy: vector.entropy, seconds: vector.seconds,
-                microseconds: vector.microseconds)
+                microseconds: vector.microseconds,
+            )
             #expect(pending.request == Data(bytes(vector.request)))
             #expect(pending.responseKey == bytes(vector.responseKey))
             #expect(pending.responseEcho == bytes(vector.responseEcho))
@@ -55,23 +56,26 @@ struct SAPHandshakeTests {
             #expect(session.f2Input2 == Data(bytes(vector.f2Input2)))
             #expect(session.f2Tail == Data(bytes(vector.f2Tail)))
             #expect(session.source == Data((0 ..< 576).map { UInt8(truncatingIfNeeded: $0 * 17 + 3) }))
-            #expect(session.f2Input1 == Data((32 ..< 48).map { UInt8($0 + 0x2d) }))
+            #expect(session.f2Input1 == Data((32 ..< 48).map { UInt8($0 + 0x2D) }))
             #expect(session.f3.count == 159)
         }
     }
 
     @Test
-    func rejectsTruncatedCorruptedAndUnrelatedReplies() throws {
+    func `rejects truncated corrupted and unrelated replies`() throws {
         let fixture = try fixture()
         let first = try #require(fixture.cases.first)
         let second = fixture.cases[1]
         let pending = try SAPHandshake(
-            certificate: Data(bytes(fixture.certificate)), entropy: first.entropy, seconds: first.seconds, microseconds: first.microseconds)
+            certificate: Data(bytes(fixture.certificate)), entropy: first.entropy, seconds: first.seconds, microseconds: first.microseconds,
+        )
         let reply = Data(bytes(first.reply))
-        for count in [0, 20, 21, reply.count - 1] { #expect(throws: (any Error).self) { try pending.complete(reply.prefix(count)) } }
+        for count in [0, 20, 21, reply.count - 1] {
+            #expect(throws: (any Error).self) { try pending.complete(reply.prefix(count)) }
+        }
         #expect(throws: (any Error).self) { try pending.complete(Data(bytes(second.reply))) }
         var corrupted = reply
-        corrupted[17 ..< 21] = Data(repeating: 0xff, count: 4)
+        corrupted[17 ..< 21] = Data(repeating: 0xFF, count: 4)
         #expect(throws: (any Error).self) { try pending.complete(corrupted) }
         corrupted = reply
         corrupted[21] ^= 1
@@ -84,17 +88,18 @@ struct SAPHandshakeTests {
         // Keep every field length valid while changing only the client's echoed secret.
         plaintext[1239] ^= 1
         corrupted = reply
-        corrupted[21 ..< 21 + count] = Data(try SAPCrypto.cbc(plaintext, key: key, iv: iv, encrypt: true))
+        corrupted[21 ..< 21 + count] = try Data(SAPCrypto.cbc(plaintext, key: key, iv: iv, encrypt: true))
         #expect(throws: (any Error).self) { try pending.complete(corrupted) }
     }
 
     @Test
-    func opaqueServerRecordUsesItsDeclaredLength() throws {
+    func `opaque server record uses its declared length`() throws {
         let fixture = try fixture()
         let vector = try #require(fixture.cases.first)
         let pending = try SAPHandshake(
             certificate: Data(bytes(fixture.certificate)), entropy: vector.entropy,
-            seconds: vector.seconds, microseconds: vector.microseconds)
+            seconds: vector.seconds, microseconds: vector.microseconds,
+        )
         var reply = Data(bytes(vector.reply))
         let recordOffset = reply.count - 159
         reply = reply.prefix(recordOffset + 26)

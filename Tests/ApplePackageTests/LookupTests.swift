@@ -33,9 +33,9 @@ final class ApplePackageLookupTests: XCTestCase {
 
     @MainActor func testAppleTVPlatformVersionLookup() async throws {
         let metadata = try await PlatformVersionLookup.lookup(
-            appID: 544007664,
+            appID: 544_007_664,
             countryCode: "US",
-            entityType: .appleTV
+            entityType: .appleTV,
         )
 
         XCTAssertEqual(metadata.bundleID, "com.google.ios.youtube")

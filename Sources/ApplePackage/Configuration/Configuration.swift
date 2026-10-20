@@ -38,7 +38,9 @@ public enum Configuration {
             // takes precedence when the default is installed.
             let identifier = (try? DeviceIdentifier.system()) ?? ""
             return state.withLock { state in
-                if let configured = state.deviceIdentifier { return configured }
+                if let configured = state.deviceIdentifier {
+                    return configured
+                }
                 state.deviceIdentifier = identifier
                 return identifier
             }
@@ -67,7 +69,9 @@ public enum Configuration {
             precondition(!deviceIdentifier.isEmpty, "deviceIdentifier must be set")
             let configuration = TLSConfiguration.makeClientConfiguration()
             return state.withLock { state in
-                if let configured = state.tlsConfiguration { return configured }
+                if let configured = state.tlsConfiguration {
+                    return configured
+                }
                 state.tlsConfiguration = configuration
                 return configuration
             }

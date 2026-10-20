@@ -12,7 +12,7 @@ import Foundation
 struct Versions: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "versions",
-        abstract: "List versions of an app"
+        abstract: "List versions of an app",
     )
 
     @OptionGroup var globalOptions: GlobalOptions
@@ -37,7 +37,7 @@ struct Versions: AsyncParsableCommand, Sendable {
                 account: &account,
                 bundleIdentifier: bundleID,
                 entityType: platform?.entityType,
-                externalVersionID: versionID
+                externalVersionID: versionID,
             )
             for version in versions {
                 print(version)

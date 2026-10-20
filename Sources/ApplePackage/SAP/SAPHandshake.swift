@@ -32,30 +32,32 @@ struct SAPHandshake {
         func generate(_ count: Int, address: UInt32, exchange: Bool = false) -> [UInt8] {
             var output = [UInt8](repeating: 0, count: count)
             if exchange {
-                sap_rng_exchange(&random, pool[0x3c / 4], address, &output, count)
+                sap_rng_exchange(&random, pool[0x3C / 4], address, &output, count)
             } else {
                 sap_rng_setup(&random, seed54, address, &output, count)
             }
             return output
         }
         // These constants are arithmetic salts from the reconstructed layout, never pointers.
-        let initial = generate(33, address: 0x7ffac0)
-        let f2Material = initial.prefix(16 + Int(initial[32] % 17)).map { $0 ^ 0x2d }
-        let responseKey = generate(16, address: 0x7ffc14, exchange: true)
-        let responseEcho = generate(16, address: 0x7ffc14, exchange: true)
-        let encryptionKey = generate(16, address: 0x7ffc14, exchange: true)
-        let iv = generate(16, address: 0x7ffc14, exchange: true)
-        let authenticationKey = generate(20, address: 0x7ffc24, exchange: true)
-        let padding = (UInt32(0x7ff808) ..< 0x7ff813).reversed().map { UInt8(truncatingIfNeeded: (($0 ^ 0xba) &* ($0 &+ 0x11)) ^ 0x2d) }
+        let initial = generate(33, address: 0x7FFAC0)
+        let f2Material = initial.prefix(16 + Int(initial[32] % 17)).map { $0 ^ 0x2D }
+        let responseKey = generate(16, address: 0x7FFC14, exchange: true)
+        let responseEcho = generate(16, address: 0x7FFC14, exchange: true)
+        let encryptionKey = generate(16, address: 0x7FFC14, exchange: true)
+        let iv = generate(16, address: 0x7FFC14, exchange: true)
+        let authenticationKey = generate(20, address: 0x7FFC24, exchange: true)
+        let padding = (UInt32(0x7FF808) ..< 0x7FF813).reversed().map { UInt8(truncatingIfNeeded: (($0 ^ 0xBA) &* ($0 &+ 0x11)) ^ 0x2D) }
         let plaintext = [UInt8(2)] + SAPBytes.be32(1) + responseKey + responseEcho + padding
-        let oaepSeed = generate(20, address: 0x7ff4e4)
+        let oaepSeed = generate(20, address: 0x7FF4E4)
         let keyBlock = try SAPCrypto.rsaOAEP(
-            encryptionKey + authenticationKey, seed: oaepSeed, modulus: certificate.modulus, exponent: certificate.exponent)
+            encryptionKey + authenticationKey, seed: oaepSeed, modulus: certificate.modulus, exponent: certificate.exponent,
+        )
         let encrypted = try SAPCrypto.cbc(plaintext, key: encryptionKey, iv: iv, encrypt: true)
         let mac = try SAPCrypto.hmacSHA1(key: authenticationKey, message: encrypted)
         request = Data(
             [1, UInt8(certificate.serial.count)] + certificate.serial + keyBlock + iv + SAPBytes.be32(UInt32(encrypted.count)) + encrypted
-                + mac)
+                + mac,
+        )
         self.responseKey = responseKey
         self.responseEcho = responseEcho
         self.f2Material = f2Material
@@ -98,9 +100,10 @@ struct SAPHandshake {
         guard difference == 0 else { throw SAPError.invalidInput("SAP reply belongs to another exchange") }
         let words = withUnsafeBytes(of: random.words) { Array($0.bindMemory(to: UInt32.self)) }
         return try SAPSession(
-            source: Data(fields[4]), f2Input1: Data(fields[2].map { $0 &+ 0x2d }), f2Input2: Data(f2Material.prefix(16)),
-            f2Tail: Data(f2Material.dropFirst(16).map { $0 ^ 0x2d }), f3: Data(bytes[recordOffset ..< recordOffset + recordLength]),
+            source: Data(fields[4]), f2Input1: Data(fields[2].map { $0 &+ 0x2D }), f2Input2: Data(f2Material.prefix(16)),
+            f2Tail: Data(f2Material.dropFirst(16).map { $0 ^ 0x2D }), f3: Data(bytes[recordOffset ..< recordOffset + recordLength]),
             randomWords: words, randomCursor: random.cursor, seed30: seed30, seed54: seed54,
-            f1MaterialAddress: 0x400000000604 + (f2Material.count > 28 ? 16 : 0))
+            f1MaterialAddress: 0x4000_0000_0604 + (f2Material.count > 28 ? 16 : 0),
+        )
     }
 }

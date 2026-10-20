@@ -13,7 +13,7 @@ public enum VersionFinder {
         account: inout Account,
         bundleIdentifier: String,
         entityType: EntityType? = nil,
-        externalVersionID: String? = nil
+        externalVersionID: String? = nil,
     ) async throws -> [String] {
         guard let countryCode = Configuration.countryCode(for: account.store) else {
             try ensureFailed(Strings.unsupportedStoreIdentifier(account.store))
@@ -26,7 +26,7 @@ public enum VersionFinder {
             let metadata = try await PlatformVersionLookup.lookup(
                 appID: app.id,
                 countryCode: countryCode,
-                entityType: entityType
+                entityType: entityType,
             )
             resolvedExternalVersionID = metadata.externalVersionID
         } else {
@@ -41,7 +41,7 @@ public enum VersionFinder {
             account: &account,
             app: app,
             deviceIdentifier: Configuration.deviceIdentifier,
-            externalVersionID: resolvedExternalVersionID
+            externalVersionID: resolvedExternalVersionID,
         )
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {
@@ -56,7 +56,7 @@ public enum VersionFinder {
                     if customerMessage == Strings.passwordChanged {
                         try ensureFailed(Strings.passwordTokenExpired)
                     }
-                    if let customerMessage = customerMessage {
+                    if let customerMessage {
                         try ensureFailed(customerMessage)
                     }
                     try ensureFailed(Strings.noItemsInResponse)

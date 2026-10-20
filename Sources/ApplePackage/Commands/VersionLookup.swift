@@ -12,7 +12,7 @@ public enum VersionLookup {
     public static func getVersionMetadata(
         account: inout Account,
         app: Software,
-        versionID: String
+        versionID: String,
     ) async throws -> VersionMetadata {
         let client = Configuration.makeHTTPClient(redirectConfiguration: .disallow)
         defer { _ = client.shutdown() }
@@ -22,7 +22,7 @@ public enum VersionLookup {
             account: &account,
             app: app,
             deviceIdentifier: Configuration.deviceIdentifier,
-            externalVersionID: versionID
+            externalVersionID: versionID,
         )
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {

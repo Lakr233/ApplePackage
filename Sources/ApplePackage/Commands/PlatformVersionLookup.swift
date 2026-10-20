@@ -21,7 +21,7 @@ public enum PlatformVersionLookup {
     public static func lookup(
         appID: Int64,
         countryCode: String,
-        entityType: EntityType
+        entityType: EntityType,
     ) async throws -> PlatformVersionMetadata {
         let client = Configuration.makeHTTPClient(redirectConfiguration: .follow(max: 8, allowCycles: false))
         defer { _ = client.shutdown() }
@@ -64,28 +64,28 @@ public enum PlatformVersionLookup {
             name: item["name"] as? String,
             displayVersion: version?["display"] as? String,
             externalVersionID: externalVersionID,
-            buyParams: buyParams
+            buyParams: buyParams,
         )
     }
 
     private static func makeRequest(
         appID: Int64,
         countryCode: String,
-        entityType: EntityType
+        entityType: EntityType,
     ) throws -> HTTPClient.Request {
         let url = try createLookupURL(appID: appID, countryCode: countryCode, entityType: entityType)
         return try .init(
             url: url.absoluteString,
             method: .GET,
             headers: .init([("User-Agent", Configuration.userAgent)]),
-            body: .none
+            body: .none,
         )
     }
 
     private static func createLookupURL(
         appID: Int64,
         countryCode: String,
-        entityType: EntityType
+        entityType: EntityType,
     ) throws -> URL {
         var comps = URLComponents()
         comps.scheme = "https"
@@ -106,15 +106,15 @@ public enum PlatformVersionLookup {
     private static func stringValue(_ value: Any?) -> String? {
         switch value {
         case let value as String:
-            return value
+            value
         case let value as Int:
-            return "\(value)"
+            "\(value)"
         case let value as Int64:
-            return "\(value)"
+            "\(value)"
         case let value as NSNumber:
-            return value.stringValue
+            value.stringValue
         default:
-            return nil
+            nil
         }
     }
 

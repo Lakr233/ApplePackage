@@ -7,9 +7,9 @@ public enum SAPError: Error, LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case let .invalidInput(message): return "Invalid SAP input: \(message)"
-        case let .invalidResource(message): return "Invalid SAP table resource: \(message)"
-        case .cryptoFailure: return "OpenSSL digest calculation failed"
+        case let .invalidInput(message): "Invalid SAP input: \(message)"
+        case let .invalidResource(message): "Invalid SAP table resource: \(message)"
+        case .cryptoFailure: "OpenSSL digest calculation failed"
         }
     }
 }

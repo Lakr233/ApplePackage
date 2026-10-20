@@ -10,7 +10,9 @@ import AppKit
 import XCTest
 
 final class ApplePackageAuthenticateTests: XCTestCase {
-    override class func setUp() { TestConfiguration.bootstrap() }
+    override class func setUp() {
+        TestConfiguration.bootstrap()
+    }
 
     @MainActor
     func testRotatePasswordToken() async throws {
@@ -60,7 +62,9 @@ final class ApplePackageAuthenticateTests: XCTestCase {
             alert.runModal()
 
             // Re-read code from file after user interaction
-            if let updatedCode = TestConfiguration.code { code = updatedCode }
+            if let updatedCode = TestConfiguration.code {
+                code = updatedCode
+            }
             XCTAssert(!code.isEmpty)
             do {
                 let result = try await session.authenticate(email: email, password: password, code: code)

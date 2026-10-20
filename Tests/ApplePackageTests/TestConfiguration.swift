@@ -7,7 +7,9 @@
 import Foundation
 
 /// Credential identity is derived when read; bootstrap has no shared write.
-var testAccountEmail: String { TestConfiguration.email ?? "" }
+var testAccountEmail: String {
+    TestConfiguration.email ?? ""
+}
 
 /// Central credential loader for test infrastructure.
 /// Reads from environment variables with fallback to `/tmp/applepackage/*.txt` files.
@@ -15,22 +17,30 @@ enum TestConfiguration {
     private static let env = ProcessInfo.processInfo.environment
 
     static var email: String? {
-        if let value = env["TEST_ACCOUNT_EMAIL"], !value.isEmpty { return value }
+        if let value = env["TEST_ACCOUNT_EMAIL"], !value.isEmpty {
+            return value
+        }
         return readFile("/tmp/applepackage/account.txt")
     }
 
     static var password: String? {
-        if let value = env["TEST_ACCOUNT_PASSWORD"], !value.isEmpty { return value }
+        if let value = env["TEST_ACCOUNT_PASSWORD"], !value.isEmpty {
+            return value
+        }
         return readFile("/tmp/applepackage/password.txt")
     }
 
     static var code: String? {
-        if let value = env["TEST_ACCOUNT_CODE"], !value.isEmpty { return value }
+        if let value = env["TEST_ACCOUNT_CODE"], !value.isEmpty {
+            return value
+        }
         return readFile("/tmp/applepackage/code.txt")
     }
 
     static var deviceGUID: String? {
-        if let value = env["TEST_DEVICE_GUID"], !value.isEmpty { return value }
+        if let value = env["TEST_DEVICE_GUID"], !value.isEmpty {
+            return value
+        }
         return nil
     }
 
@@ -64,7 +74,7 @@ enum TestConfiguration {
             {
                 try? FileManager.default.createDirectory(
                     at: accountPath.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
+                    withIntermediateDirectories: true,
                 )
                 try? data.write(to: accountPath)
                 print("[TestConfiguration] bootstrapped account.json from TEST_ACCOUNT_DATA")

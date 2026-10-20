@@ -51,24 +51,23 @@ public enum Strings {
     }
 
     static func purchaseFailureMessage(failureType: String, customerMessage: String?) -> String {
-        let message: String
-        switch failureType {
+        let message: String = switch failureType {
         case "5002":
-            message = alreadyPurchased
+            alreadyPurchased
         case "2040":
-            message = purchasedAppUnavailable
+            purchasedAppUnavailable
         case "2059":
-            message = itemUnavailableOrNotPurchased
+            itemUnavailableOrNotPurchased
         case "1010":
-            message = invalidStore
+            invalidStore
         case "2034", "2042":
-            message = passwordTokenExpired
+            passwordTokenExpired
         case "2019":
-            message = paidAppPurchaseFailed
+            paidAppPurchaseFailed
         case "9610":
-            message = noLicenseFound
+            noLicenseFound
         default:
-            message = customerMessage.flatMap { $0.isEmpty ? nil : $0 } ?? purchaseFailed
+            customerMessage.flatMap { $0.isEmpty ? nil : $0 } ?? purchaseFailed
         }
 
         return "\(message) (failureType: \(failureType))"

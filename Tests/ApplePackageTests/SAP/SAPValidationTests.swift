@@ -1,6 +1,6 @@
+@testable import ApplePackage
 import Foundation
 import XCTest
-@testable import ApplePackage
 
 final class SAPValidationTests: XCTestCase {
     func testResourceDimensionsAndHashes() throws {
@@ -12,13 +12,15 @@ final class SAPValidationTests: XCTestCase {
         XCTAssertEqual(tables.carryMasks.map(\.count), [233, 239, 241, 251])
         XCTAssertEqual(tables.f2.count, 18432)
         XCTAssertEqual(
-            try SAPCrypto.sha256(tables.byteTables.flatMap { $0 }), "a40bb580f1012b06b8b257926b76bb02ec98033f6399da2143c963d36dbe0aae")
+            try SAPCrypto.sha256(tables.byteTables.flatMap(\.self)), "a40bb580f1012b06b8b257926b76bb02ec98033f6399da2143c963d36dbe0aae",
+        )
         let wordBytes = tables.wordTables.flatMap { table in
             table.flatMap { word in (0 ..< 4).map { UInt8(truncatingIfNeeded: word >> (8 * $0)) } }
         }
         XCTAssertEqual(try SAPCrypto.sha256(wordBytes), "6eeffb5e403a54a3b51baa67cf0b7abc23271da404fef4cae9e06c9753833340")
         XCTAssertEqual(
-            try SAPCrypto.sha256(tables.carryMasks.flatMap { $0 }), "f0396c6119faafecc811c33a61433faacbfb685d157f198da920183b240285d0")
+            try SAPCrypto.sha256(tables.carryMasks.flatMap(\.self)), "f0396c6119faafecc811c33a61433faacbfb685d157f198da920183b240285d0",
+        )
         XCTAssertEqual(try SAPCrypto.sha256(tables.f2), "f811dd378e1e8e05a9d3697111c4fb1d4afe2acdf81a1fcde69fe231bc975876")
     }
 
@@ -30,7 +32,8 @@ final class SAPValidationTests: XCTestCase {
             try SAPSession(
                 source: source ?? valid.source, f2Input1: input1 ?? valid.f2Input1, f2Input2: valid.f2Input2, f2Tail: tail ?? valid.f2Tail,
                 f3: f3 ?? valid.f3, randomWords: words ?? valid.randomWords, randomCursor: valid.randomCursor, seed30: valid.seed30,
-                seed54: valid.seed54, f1MaterialAddress: valid.f1MaterialAddress, ivAddress: valid.ivAddress)
+                seed54: valid.seed54, f1MaterialAddress: valid.f1MaterialAddress, ivAddress: valid.ivAddress,
+            )
         }
         XCTAssertThrowsError(try construct(source: Data(repeating: 0, count: 575)))
         XCTAssertThrowsError(try construct(input1: Data(repeating: 0, count: 15)))
@@ -64,7 +67,7 @@ final class SAPValidationTests: XCTestCase {
         XCTAssertThrowsError(try SAPSession(snapshot: snapshot([:])))
         XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["phase": "signing"])))
         XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": -1])))
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": 67108865])))
+        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": 67_108_865])))
         XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["heap_hex": "zz"])))
         XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": 64, "data_patches": [[64, "00"]]])))
         XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": 64, "data_patches": [[-1, "00"]]])))

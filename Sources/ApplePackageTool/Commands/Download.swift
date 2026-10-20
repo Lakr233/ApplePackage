@@ -13,7 +13,7 @@ import Synchronization
 struct Download: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "download",
-        abstract: "Download an app"
+        abstract: "Download an app",
     )
 
     @OptionGroup var globalOptions: GlobalOptions
@@ -50,12 +50,12 @@ struct Download: AsyncParsableCommand, Sendable {
                 requestedVersionID: versionID,
                 app: app,
                 country: country,
-                entityType: entityType
+                entityType: entityType,
             )
             let downloadOutput = try await ApplePackage.Download.download(
                 account: &account,
                 app: app,
-                externalVersionID: resolvedVersionID
+                externalVersionID: resolvedVersionID,
             )
 
             guard let url = URL(string: downloadOutput.downloadURL) else {
@@ -69,7 +69,7 @@ struct Download: AsyncParsableCommand, Sendable {
             let tempURL = temporaryDownloadURL(
                 outputURL: outputURL,
                 bundleID: app.bundleID,
-                bundleVersion: downloadOutput.bundleVersion
+                bundleVersion: downloadOutput.bundleVersion,
             )
 
             var startByte: Int64 = 0
@@ -93,7 +93,7 @@ struct Download: AsyncParsableCommand, Sendable {
             try await SignatureInjector.inject(
                 sinfs: downloadOutput.sinfs,
                 iTunesMetadata: downloadOutput.iTunesMetadata,
-                into: tempURL.path
+                into: tempURL.path,
             )
 
             try PackagePlatformValidator.ensurePackage(at: tempURL, supports: entityType)
@@ -130,7 +130,7 @@ struct Download: AsyncParsableCommand, Sendable {
             fileURL: fileURL,
             startByte: startByte,
             totalSize: totalSize,
-            progressHandler: Self.updateProgress(downloaded:total:)
+            progressHandler: Self.updateProgress(downloaded:total:),
         )
 
         print("", terminator: "")
@@ -143,7 +143,7 @@ struct Download: AsyncParsableCommand, Sendable {
         requestedVersionID: String?,
         app: Software,
         country: String,
-        entityType: EntityType?
+        entityType: EntityType?,
     ) async throws -> String {
         if let requestedVersionID, !requestedVersionID.isEmpty {
             return requestedVersionID
@@ -156,7 +156,7 @@ struct Download: AsyncParsableCommand, Sendable {
         let metadata = try await PlatformVersionLookup.lookup(
             appID: app.id,
             countryCode: country,
-            entityType: entityType
+            entityType: entityType,
         )
         return metadata.externalVersionID
     }
@@ -181,7 +181,7 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
         fileURL: URL,
         startByte: Int64,
         totalSize: Int64,
-        progressHandler: @escaping @Sendable (Int64, Int64) -> Void
+        progressHandler: @escaping @Sendable (Int64, Int64) -> Void,
     ) {
         self.fileURL = fileURL
         self.startByte = startByte
@@ -223,7 +223,7 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
         _: URLSession,
         dataTask _: URLSessionDataTask,
         didReceive response: URLResponse,
-        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void,
     ) {
         guard let httpResponse = response as? HTTPURLResponse,
               200 ... 299 ~= httpResponse.statusCode || httpResponse.statusCode == 206
@@ -247,7 +247,7 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
                 state.lastProgressUpdate = now
                 return state.downloadedBytes
             }
-            if let progress = progress {
+            if let progress {
                 progressHandler(progress, totalSize)
             }
         } catch {
@@ -272,7 +272,7 @@ private final class ProgressDownloader: NSObject, URLSessionDataDelegate {
             return
         }
 
-        if let error = error {
+        if let error {
             continuation.resume(throwing: error)
         } else {
             continuation.resume()
@@ -288,7 +288,7 @@ private extension Download {
             throw NSError(
                 domain: "InvalidOutputPath",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Output path must end with .ipa"]
+                userInfo: [NSLocalizedDescriptionKey: "Output path must end with .ipa"],
             )
         }
 
@@ -299,7 +299,7 @@ private extension Download {
             throw NSError(
                 domain: "InvalidOutputPath",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Output path must point to an ipa file"]
+                userInfo: [NSLocalizedDescriptionKey: "Output path must point to an ipa file"],
             )
         }
 
@@ -310,7 +310,7 @@ private extension Download {
             throw NSError(
                 domain: "InvalidOutputPath",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Output directory does not exist: \(parentURL.path)"]
+                userInfo: [NSLocalizedDescriptionKey: "Output directory does not exist: \(parentURL.path)"],
             )
         }
 
@@ -329,7 +329,7 @@ private extension Download {
             throw NSError(
                 domain: "InvalidOutputPath",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Output directory is not writable: \(directoryURL.path)"]
+                userInfo: [NSLocalizedDescriptionKey: "Output directory is not writable: \(directoryURL.path)"],
             )
         }
     }
@@ -355,7 +355,7 @@ private extension Download {
                 outputURL,
                 withItemAt: tempURL,
                 backupItemName: nil,
-                options: []
+                options: [],
             )
         } else {
             try FileManager.default.moveItem(at: tempURL, to: outputURL)

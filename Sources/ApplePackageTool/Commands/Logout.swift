@@ -12,7 +12,7 @@ import Foundation
 struct Logout: ParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "logout",
-        abstract: "Logout from Apple account"
+        abstract: "Logout from Apple account",
     )
 
     @Argument(help: "Email address")

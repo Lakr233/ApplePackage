@@ -37,7 +37,7 @@ private struct OriginalSnapshot: Decodable {
 enum SAPSnapshot {
     static func decode(_ snapshot: Data, ivAddress: UInt64) throws -> SAPSession {
         let saved = try JSONDecoder().decode(OriginalSnapshot.self, from: snapshot)
-        guard saved.phase == "post_handshake", (0 ... 67108864).contains(saved.dataSize) else {
+        guard saved.phase == "post_handshake", (0 ... 67_108_864).contains(saved.dataSize) else {
             throw SAPError.invalidInput("requires complete post_handshake snapshot")
         }
         let heap = try SAPBytes.hex(saved.heapHex)
@@ -52,7 +52,7 @@ enum SAPSnapshot {
         func read(_ address: UInt64, _ width: Int) throws -> UInt64 {
             for (base, bytes) in [(saved.heapBase, heap), (saved.dataBase, data)] {
                 if address >= base, address - base <= UInt64(bytes.count),
-                    width <= bytes.count - Int(address - base)
+                   width <= bytes.count - Int(address - base)
                 {
                     return try SAPBytes.word(bytes, at: Int(address - base), width: width)
                 }
@@ -61,21 +61,21 @@ enum SAPSnapshot {
         }
         func memory(_ address: UInt64, _ count: Int) throws -> Data {
             guard count >= 0, address >= saved.heapBase, address - saved.heapBase <= UInt64(heap.count),
-                count <= heap.count - Int(address - saved.heapBase)
+                  count <= heap.count - Int(address - saved.heapBase)
             else {
                 throw SAPError.invalidInput("session pointer outside saved heap")
             }
             let offset = Int(address - saved.heapBase)
             return Data(heap[offset ..< offset + count])
         }
-        let header = (saved.context ^ 0x751f469598842008) &+ 0x8ae0b96a677bdff8
+        let header = (saved.context ^ 0x751F_4695_9884_2008) &+ 0x8AE0_B96A_677B_DFF8
         let pointer = try read(header &+ 0x20, 8)
-        let selector = try read(saved.dataBase &+ 0x46cd4, 4) & 0x5b31e844
-        let seedAddress = try read(saved.dataBase &+ 0x46cc8, 8) &+ selector
-        let key = (UInt32(truncatingIfNeeded: pointer) &* 0x5b31e847) ^ UInt32(try read(seedAddress, 4))
-        var raw = try (0 ..< 0x310).map { UInt8(try read(pointer &+ UInt64($0), 1)) }
+        let selector = try read(saved.dataBase &+ 0x46CD4, 4) & 0x5B31_E844
+        let seedAddress = try read(saved.dataBase &+ 0x46CC8, 8) &+ selector
+        let key = try (UInt32(truncatingIfNeeded: pointer) &* 0x5B31_E847) ^ UInt32(read(seedAddress, 4))
+        var raw = try (0 ..< 0x310).map { try UInt8(read(pointer &+ UInt64($0), 1)) }
         for i in 1 ..< 98 {
-            let position = Int(((key &+ UInt32(i)) ^ key) &* 0x01000193) % i
+            let position = Int(((key &+ UInt32(i)) ^ key) &* 0x0100_0193) % i
             let left = Array(raw[8 * i ..< 8 * i + 8])
             let right = Array(raw[8 * position ..< 8 * position + 8])
             raw.replaceSubrange(8 * i ..< 8 * i + 8, with: right)
@@ -88,16 +88,16 @@ enum SAPSnapshot {
         func word(_ offset: Int, _ width: Int = 8) throws -> UInt64 {
             try SAPBytes.word(raw, at: offset, width: width)
         }
-        let f2Length = Int(try word(0x288, 4))
+        let f2Length = try Int(word(0x288, 4))
         guard (16 ... 32).contains(f2Length), try word(0x230, 4) == 159 else {
             throw SAPError.invalidInput("decoded F2/F3 length mismatch")
         }
-        let source = try memory(word(0x2a0), 576)
-        let f2Input1 = try memory(word(0x2b0), 16)
+        let source = try memory(word(0x2A0), 576)
+        let f2Input1 = try memory(word(0x2B0), 16)
         let f2Input2 = try memory(word(0x280), 16)
-        let tail = try memory(word(0x280) &+ 16, f2Length - 16).map { $0 ^ 0x2d }
-        let f3 = try memory(word(0x228), 159).map { $0 ^ 0x2d }
-        let cachedF1 = try word(0x2e0)
+        let tail = try memory(word(0x280) &+ 16, f2Length - 16).map { $0 ^ 0x2D }
+        let f3 = try memory(word(0x228), 159).map { $0 ^ 0x2D }
+        let cachedF1 = try word(0x2E0)
         guard cachedF1 == 0 else {
             throw SAPError.invalidInput("requires an unused post-handshake snapshot, before the first signature")
         }
@@ -125,13 +125,14 @@ enum SAPSnapshot {
         }
         _ = try allocate(UInt64(f2Length + 4))
         let firstMaterial = try allocate(256) &+ 68
-        let words = try (0 ..< 624).map { UInt32(try SAPBytes.word(data, at: 0x46ce8 + 4 * $0, width: 4)) }
+        let words = try (0 ..< 624).map { try UInt32(SAPBytes.word(data, at: 0x46CE8 + 4 * $0, width: 4)) }
         return try SAPSession(
             source: source, f2Input1: f2Input1, f2Input2: f2Input2,
             f2Tail: Data(tail), f3: Data(f3), randomWords: words,
-            randomCursor: UInt32(SAPBytes.word(data, at: 0x476b4, width: 4)),
+            randomCursor: UInt32(SAPBytes.word(data, at: 0x476B4, width: 4)),
             seed30: UInt32(SAPBytes.word(heap, at: 0x30, width: 4)),
             seed54: UInt32(SAPBytes.word(heap, at: 0x54, width: 4)),
-            f1MaterialAddress: firstMaterial, ivAddress: ivAddress)
+            f1MaterialAddress: firstMaterial, ivAddress: ivAddress,
+        )
     }
 }

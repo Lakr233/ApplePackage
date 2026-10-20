@@ -1,6 +1,6 @@
+@testable import ApplePackage
 import Foundation
 import XCTest
-@testable import ApplePackage
 
 /// All variable inputs here are synthetic and have never been server-issued.
 /// The expected outputs were generated with the independently recovered Python
@@ -9,7 +9,7 @@ final class SAPSyntheticTests: XCTestCase {
     func testSignatureCarriesVariableLengthServerRecord() async throws {
         let original = try SyntheticSession.make()
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
-        let record = Data(repeating: 0xa5, count: 26)
+        let record = Data(repeating: 0xA5, count: 26)
         object["f3"] = record.base64EncodedString()
         let session = try JSONDecoder().decode(SAPSession.self, from: JSONSerialization.data(withJSONObject: object))
         let signer = try SAPSigner(session: session)
@@ -23,7 +23,7 @@ final class SAPSyntheticTests: XCTestCase {
         let session = try SyntheticSession.make()
         XCTAssertEqual(
             try SAPCrypto.sha256([UInt8](session.source)),
-            "bc89fa33012fa9d8639c174bc5fca3b9e037da8b91a1d42b0c82992963fd315a"
+            "bc89fa33012fa9d8639c174bc5fca3b9e037da8b91a1d42b0c82992963fd315a",
         )
         let signer = try SAPSigner(session: session, platform: 7)
         let expected = [
@@ -90,10 +90,10 @@ enum SyntheticSession {
     static let bodies = [Data(), Data(Array("synthetic SAP\nbody-2".utf8) + [0, 255]), Data((0 ..< 256).map(UInt8.init))]
 
     static func make() throws -> SAPSession {
-        var random = XorShift32(state: 0x53595031)
+        var random = XorShift32(state: 0x5359_5031)
         var source = random.bytes(576)
-        source[0xfa] = source[0xca] ^ 10
-        source[0xf3] = source[0xc3] ^ 147  // inverse cache length2707
+        source[0xFA] = source[0xCA] ^ 10
+        source[0xF3] = source[0xC3] ^ 147 // inverse cache length2707
         let input1 = random.bytes(16)
         let input2 = random.bytes(16)
         let tail = random.bytes(7)
@@ -105,8 +105,8 @@ enum SyntheticSession {
         return try SAPSession(
             source: Data(source), f2Input1: Data(input1), f2Input2: Data(input2),
             f2Tail: Data(tail), f3: Data(f3), randomWords: words, randomCursor: 624,
-            seed30: seed30, seed54: seed54, f1MaterialAddress: 0x1234500044,
-            ivAddress: 0x0feed00050
+            seed30: seed30, seed54: seed54, f1MaterialAddress: 0x12_3450_0044,
+            ivAddress: 0x0F_EED0_0050,
         )
     }
 

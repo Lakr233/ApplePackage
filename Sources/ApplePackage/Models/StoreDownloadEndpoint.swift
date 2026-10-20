@@ -22,9 +22,9 @@ enum StoreDownloadEndpoint {
     var externalVersionIDKey: String {
         switch self {
         case .volumeStore:
-            return "externalVersionId"
+            "externalVersionId"
         case .redownload:
-            return "appExtVrsId"
+            "appExtVrsId"
         }
     }
 

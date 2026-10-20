@@ -18,8 +18,8 @@ struct SAPCipher: Sendable {
 
     init(source: [UInt8], tables: SAPStaticTables) throws {
         guard tables.byteTables.count >= 200, tables.byteTables.allSatisfy({ $0.count == 256 }),
-            tables.wordTables.count >= 72, tables.wordTables.allSatisfy({ $0.count == 256 }),
-            tables.carryMasks.map(\.count) == [233, 239, 241, 251]
+              tables.wordTables.count >= 72, tables.wordTables.allSatisfy({ $0.count == 256 }),
+              tables.carryMasks.map(\.count) == [233, 239, 241, 251]
         else {
             throw SAPError.invalidInput("Invalid E static tables")
         }
@@ -92,7 +92,9 @@ struct SAPCipher: Sendable {
         accumulators[0] ^= 0x9658_8D1F
         for lane in 0 ..< 16 {
             var index = state[Self.indexSources[lane]] ^ key[lane]
-            if lane == 5 { index ^= state[6] }
+            if lane == 5 {
+                index ^= state[6]
+            }
             let table = (Self.firstWordTables[lane] - 16 * stage + 144) % 72
             accumulators[lane / 4] ^= wordTables[table][Int(index)]
         }
@@ -126,7 +128,7 @@ struct SAPCipher: Sendable {
         for position in 0 ..< 17 {
             let sourcePosition: Int = (3 + 7 * position) % 16
             let unmasked: UInt8 = masked[sourcePosition] ^ 0x2D
-            let incremented: UInt8 = UInt8((Int(unmasked) + position) & 255)
+            let incremented = UInt8((Int(unmasked) + position) & 255)
             expanded.append(incremented ^ 0x2D)
         }
         var slices = [[UInt8]](repeating: [], count: 9)

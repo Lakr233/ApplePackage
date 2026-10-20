@@ -1,5 +1,5 @@
-import AsyncHTTPClient
 @testable import ApplePackage
+import AsyncHTTPClient
 import Foundation
 import NIOConcurrencyHelpers
 import NIOCore
@@ -13,13 +13,17 @@ final class SAPAuthenticationRequestTests: XCTestCase {
 
         func sign(_ body: Data) throws -> Data {
             bodies.append(body)
-            return Data([0xa5, UInt8(bodies.count)])
+            return Data([0xA5, UInt8(bodies.count)])
         }
 
-        func recordedBodies() -> [Data] { bodies }
+        func recordedBodies() -> [Data] {
+            bodies
+        }
     }
 
-    private actor FailingSigner: SAPRequestSigning { func sign(_: Data) throws -> Data { throw TestError.signingFailed } }
+    private actor FailingSigner: SAPRequestSigning { func sign(_: Data) throws -> Data {
+        throw TestError.signingFailed
+    } }
 
     private enum TestError: Error {
         case signingFailed
@@ -38,18 +42,18 @@ final class SAPAuthenticationRequestTests: XCTestCase {
                 guard case let .byteBuffer(buffer) = part else { return eventLoop.makeFailedFuture(TestError.unexpectedBodyChunk) }
                 captured.withLockedValue { $0.append(contentsOf: buffer.readableBytesView) }
                 return eventLoop.makeSucceededFuture(())
-            }
+            },
         ).wait()
-        let data = captured.withLockedValue { $0 }
-        return data
+        return captured.withLockedValue { $0 }
     }
 
     private func makeRequest(
-        endpoint: String = "https://auth.itunes.apple.com/login", code: String = "", signer: any SAPRequestSigning = RecordingSigner()
+        endpoint: String = "https://auth.itunes.apple.com/login", code: String = "", signer: any SAPRequestSigning = RecordingSigner(),
     ) async throws -> HTTPClient.Request {
         try await Authenticator.makeRequest(
             endpoint: XCTUnwrap(URL(string: endpoint)), email: "reader+ä@example.invalid", password: "test<&password", code: code,
-            cookies: [], deviceIdentifier: "00-11-22-33-44-55", sapSigner: signer)
+            cookies: [], deviceIdentifier: "00-11-22-33-44-55", sapSigner: signer,
+        )
     }
 
     func testSignatureCoversExactSerializedHTTPBody() async throws {
@@ -61,7 +65,7 @@ final class SAPAuthenticationRequestTests: XCTestCase {
         XCTAssertEqual(request.method.rawValue, "POST")
         XCTAssertEqual(request.headers.first(name: "Content-Type"), "application/x-apple-plist")
         let signature = try XCTUnwrap(request.headers.first(name: "X-Apple-ActionSignature"))
-        XCTAssertEqual(Data(base64Encoded: signature), Data([0xa5, 1]))
+        XCTAssertEqual(Data(base64Encoded: signature), Data([0xA5, 1]))
         let parameters = try XCTUnwrap(PropertyListSerialization.propertyList(from: sentBody, format: nil) as? [String: String])
         XCTAssertEqual(parameters["appleId"], "reader+ä@example.invalid")
         XCTAssertEqual(parameters["password"], "test<&password123456")
@@ -83,7 +87,7 @@ final class SAPAuthenticationRequestTests: XCTestCase {
         XCTAssertNotEqual(sentBodies[2], sentBodies[3])
         for (index, request) in requests.enumerated() {
             let header = try XCTUnwrap(request.headers.first(name: "X-Apple-ActionSignature"))
-            XCTAssertEqual(Data(base64Encoded: header), Data([0xa5, UInt8(index + 1)]))
+            XCTAssertEqual(Data(base64Encoded: header), Data([0xA5, UInt8(index + 1)]))
         }
     }
 
@@ -130,7 +134,9 @@ final class SAPAuthenticationRequestTests: XCTestCase {
             "http://buy.itunes.apple.com\(path)", "https://example.invalid\(path)", "https://evilbuy.itunes.apple.com\(path)",
             "https://pfoo-buy.itunes.apple.com\(path)", "https://p25-buy.itunes.apple.com.example.invalid\(path)",
             "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/other",
-        ] { XCTAssertEqual(Bag.normalizedAuthEndpoint(from: original)?.absoluteString, original) }
+        ] {
+            XCTAssertEqual(Bag.normalizedAuthEndpoint(from: original)?.absoluteString, original)
+        }
     }
 
     func testNativeAuthenticationEndpointNormalizationIsPreserved() {
@@ -138,7 +144,8 @@ final class SAPAuthenticationRequestTests: XCTestCase {
             let original = "https://auth.itunes.apple.com\(path)?guid=example"
             XCTAssertEqual(
                 Bag.normalizedAuthEndpoint(from: original)?.absoluteString,
-                "https://auth.itunes.apple.com/auth/v1/native/fast/?guid=example")
+                "https://auth.itunes.apple.com/auth/v1/native/fast/?guid=example",
+            )
         }
     }
 }

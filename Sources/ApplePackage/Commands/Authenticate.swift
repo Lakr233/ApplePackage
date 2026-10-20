@@ -51,7 +51,8 @@ public actor Authenticator {
         for _ in 0 ..< 5 {
             let request = try await Self.makeRequest(
                 endpoint: endpoint, email: email, password: password, code: code, cookies: cookies, deviceIdentifier: deviceIdentifier,
-                sapSigner: signer)
+                sapSigner: signer,
+            )
             let accumulator = ResponseAccumulator(request: request, maxBodySize: 2 * 1024 * 1024)
             let response = try await client.execute(request: request, delegate: accumulator).futureResult.get()
             let result = try parseResponse(response, email: email, password: password, code: code)
@@ -80,7 +81,7 @@ public actor Authenticator {
 
     static func approvedEndpoint(_ url: URL) throws -> URL {
         guard url.scheme?.lowercased() == "https", let host = url.host?.lowercased(), host == "apple.com" || host.hasSuffix(".apple.com"),
-            url.user == nil, url.password == nil, url.port == nil || url.port == 443
+              url.user == nil, url.password == nil, url.port == nil || url.port == 443
         else { try ensureFailed("Authentication requires an Apple HTTPS endpoint.") }
         return url
     }
@@ -98,7 +99,7 @@ public actor Authenticator {
 
     static func makeRequest(
         endpoint: URL, email: String, password: String, code: String, cookies: [Cookie], deviceIdentifier: String,
-        sapSigner: any SAPRequestSigning
+        sapSigner: any SAPRequestSigning,
     ) async throws -> HTTPClient.Request {
         let parameters: [String: String] = [
             "appleId": email, "attempt": "\(code.isEmpty ? "4" : "2")", "guid": deviceIdentifier, "password": "\(password)\(code)",
@@ -106,7 +107,9 @@ public actor Authenticator {
         ]
         let data = try PropertyListSerialization.data(fromPropertyList: parameters, format: .xml, options: 0)
         var headers: [(String, String)] = [("User-Agent", Configuration.userAgent), ("Content-Type", "application/x-apple-plist")]
-        for item in cookies.buildCookieHeader(endpoint) { headers.append(item) }
+        for item in cookies.buildCookieHeader(endpoint) {
+            headers.append(item)
+        }
         _ = try approvedEndpoint(endpoint)
         let signature = try await sapSigner.sign(data)
         headers.append(("X-Apple-ActionSignature", signature.base64EncodedString()))
@@ -116,7 +119,8 @@ public actor Authenticator {
 
     private func parseResponse(_ response: HTTPClient.Response, email: String, password: String, code: String) throws -> LoginResponse {
         APLogger.logResponse(
-            status: response.status.code, headers: response.headers.map { ($0.name, $0.value) }, bodySize: response.body?.readableBytes)
+            status: response.status.code, headers: response.headers.map { ($0.name, $0.value) }, bodySize: response.body?.readableBytes,
+        )
 
         cookies.mergeCookies(response.cookies)
 
@@ -124,9 +128,13 @@ public actor Authenticator {
             $0.components(separatedBy: "-").first
         }.filter { !$0.isEmpty }
         assert(readStoreFrontValue.count <= 1)
-        if let first = readStoreFrontValue.first { storeFront = first }
+        if let first = readStoreFrontValue.first {
+            storeFront = first
+        }
 
-        if let podValue = response.headers.first(name: "pod"), !podValue.isEmpty { pod = podValue }
+        if let podValue = response.headers.first(name: "pod"), !podValue.isEmpty {
+            pod = podValue
+        }
 
         let redirectStatuses: [HTTPResponseStatus] = [.movedPermanently, .found, .seeOther, .temporaryRedirect, .permanentRedirect]
         if redirectStatuses.contains(response.status) {
@@ -145,14 +153,18 @@ public actor Authenticator {
         let dic = try (listItem as? [String: Any]).get(Strings.responseNotDictionary)
 
         if let failureType = dic["failureType"] as? String, failureType.isEmpty, code.isEmpty,
-            let customerMessage = dic["customerMessage"] as? String, customerMessage == "MZFinance.BadLogin.Configurator_message"
+           let customerMessage = dic["customerMessage"] as? String, customerMessage == "MZFinance.BadLogin.Configurator_message"
         {
             return .codeRequired
         }
 
-        if let failureType = dic["failureType"] as? String, failureType == "-5000" { return .retry }
+        if let failureType = dic["failureType"] as? String, failureType == "-5000" {
+            return .retry
+        }
 
-        if let failureType = dic["failureType"] as? String, failureType == "5005" { return .failure(Strings.invalid2FACode) }
+        if let failureType = dic["failureType"] as? String, failureType == "5005" {
+            return .failure(Strings.invalid2FACode)
+        }
 
         let failureMessage = (dic["dialog"] as? [String: Any])?["explanation"] as? String ?? (dic["customerMessage"] as? String)
         let accountInfoDic = try (dic["accountInfo"] as? [String: Any]).get(failureMessage ?? Strings.missingAccountInfo)
@@ -162,7 +174,8 @@ public actor Authenticator {
             email: email, password: password, appleId: accountInfoDic["appleId"] as? String, store: storeFront,
             firstName: addressInfoDic["firstName"] as? String, lastName: addressInfoDic["lastName"] as? String,
             passwordToken: dic["passwordToken"] as? String, directoryServicesIdentifier: dic["dsPersonId"] as? String, cookie: cookies,
-            pod: pod)
+            pod: pod,
+        )
         return .success(account)
     }
 }

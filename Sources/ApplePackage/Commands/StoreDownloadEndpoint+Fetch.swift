@@ -17,14 +17,14 @@ extension StoreDownloadEndpoint {
         account: inout Account,
         app: Software,
         deviceIdentifier: String,
-        externalVersionID: String
+        externalVersionID: String,
     ) async throws -> [String: Any] {
         var dict = try await StoreDownloadEndpoint.volumeStore.fetchProduct(
             client: client,
             account: &account,
             app: app,
             deviceIdentifier: deviceIdentifier,
-            externalVersionID: externalVersionID
+            externalVersionID: externalVersionID,
         )
 
         if dict["failureType"] as? String == retryableFailureType {
@@ -34,7 +34,7 @@ extension StoreDownloadEndpoint {
                 account: &account,
                 app: app,
                 deviceIdentifier: deviceIdentifier,
-                externalVersionID: externalVersionID
+                externalVersionID: externalVersionID,
             )
         }
 
@@ -48,7 +48,7 @@ extension StoreDownloadEndpoint {
         account: inout Account,
         app: Software,
         deviceIdentifier: String,
-        externalVersionID: String
+        externalVersionID: String,
     ) async throws -> [String: Any] {
         var currentURL = try url(pod: account.pod, deviceIdentifier: deviceIdentifier)
         var redirectAttempt = 0
@@ -61,7 +61,7 @@ extension StoreDownloadEndpoint {
                 app: app,
                 url: currentURL,
                 guid: deviceIdentifier,
-                externalVersionID: externalVersionID
+                externalVersionID: externalVersionID,
             )
             let response = try await client.execute(request: request).get()
             defer { finalResponse = response }
@@ -69,7 +69,7 @@ extension StoreDownloadEndpoint {
             APLogger.logResponse(
                 status: response.status.code,
                 headers: response.headers.map { ($0.name, $0.value) },
-                bodySize: response.body?.readableBytes
+                bodySize: response.body?.readableBytes,
             )
 
             account.cookie.mergeCookies(response.cookies)
@@ -100,7 +100,7 @@ extension StoreDownloadEndpoint {
         let plist = try PropertyListSerialization.propertyList(
             from: data,
             options: [],
-            format: nil
+            format: nil,
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
@@ -112,7 +112,7 @@ extension StoreDownloadEndpoint {
         app: Software,
         url: URL,
         guid: String,
-        externalVersionID: String
+        externalVersionID: String,
     ) throws -> HTTPClient.Request {
         var payload: [String: Any] = [
             "creditDisplay": "",
@@ -143,7 +143,7 @@ extension StoreDownloadEndpoint {
             url: url,
             method: .POST,
             headers: .init(headers),
-            body: .data(data)
+            body: .data(data),
         )
     }
 }

@@ -11,7 +11,7 @@ import Foundation
 public enum Purchase {
     public static func purchase(
         account: inout Account,
-        app: Software
+        app: Software,
     ) async throws {
         let deviceIdentifier = Configuration.deviceIdentifier
 
@@ -36,7 +36,7 @@ public enum Purchase {
         account: inout Account,
         app: Software,
         guid: String,
-        pricingParameters: String
+        pricingParameters: String,
     ) async throws {
         APLogger.debug("purchase: using pricing parameters: \(pricingParameters)")
 
@@ -47,14 +47,14 @@ public enum Purchase {
             account: account,
             app: app,
             guid: guid,
-            pricingParameters: pricingParameters
+            pricingParameters: pricingParameters,
         )
         let response = try await client.execute(request: request).get()
 
         APLogger.logResponse(
             status: response.status.code,
             headers: response.headers.map { ($0.name, $0.value) },
-            bodySize: response.body?.readableBytes
+            bodySize: response.body?.readableBytes,
         )
 
         account.cookie.mergeCookies(response.cookies)
@@ -70,7 +70,7 @@ public enum Purchase {
         let plist = try PropertyListSerialization.propertyList(
             from: data,
             options: [],
-            format: nil
+            format: nil,
         ) as? [String: Any]
         guard let dict = plist else { try ensureFailed(Strings.invalidResponse) }
 
@@ -91,7 +91,7 @@ public enum Purchase {
                 if customerMessage == Strings.passwordChanged {
                     try ensureFailed(Strings.passwordTokenExpired)
                 }
-                if let customerMessage = customerMessage {
+                if let customerMessage {
                     if customerMessage == "Subscription Required" {
                         try ensureFailed(Strings.subscriptionRequired)
                     }
@@ -113,7 +113,7 @@ public enum Purchase {
         account: Account,
         app: Software,
         guid: String,
-        pricingParameters: String
+        pricingParameters: String,
     ) throws -> HTTPClient.Request {
         let payload: [String: Any] = [
             "appExtVrsId": "0",
@@ -154,7 +154,7 @@ public enum Purchase {
             url: urlString,
             method: .POST,
             headers: .init(headers),
-            body: .data(data)
+            body: .data(data),
         )
     }
 }

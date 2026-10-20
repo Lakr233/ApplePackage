@@ -18,7 +18,9 @@ enum SAPF2 {
         }
         for step in SAPF2Parameters.expansion {
             var word: UInt32 = 0
-            for index in step.selection { word ^= words[index] }
+            for index in step.selection {
+                word ^= words[index]
+            }
             word = ((word << 8) | (word >> 24)) ^ step.whitening
             var substituted: UInt32 = 0
             for position in 0 ..< 4 {
@@ -31,7 +33,9 @@ enum SAPF2 {
         return SAPF2Parameters.keySelections.map { row in
             row.map { selection in
                 var word: UInt32 = 0
-                for index in selection.words { word ^= words[index] }
+                for index in selection.words {
+                    word ^= words[index]
+                }
                 var byte = UInt8(truncatingIfNeeded: word >> selection.shift)
                 if selection.linear >= 0 {
                     byte = data[linearOffset + 256 * selection.linear + Int(byte)]

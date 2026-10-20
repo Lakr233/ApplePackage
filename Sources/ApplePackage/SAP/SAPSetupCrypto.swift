@@ -37,7 +37,9 @@ extension SAPCrypto {
         }
         func mask(_ seed: [UInt8], count: Int) throws -> [UInt8] {
             var output: [UInt8] = []
-            for index in 0 ..< (count + 19) / 20 { output += try sha1(seed + SAPBytes.be32(UInt32(index))) }
+            for index in 0 ..< (count + 19) / 20 {
+                output += try sha1(seed + SAPBytes.be32(UInt32(index)))
+            }
             return Array(output.prefix(count))
         }
         let database = try sha1([]) + [UInt8](repeating: 0, count: 214 - message.count) + [1] + message
@@ -57,7 +59,7 @@ extension SAPCrypto {
             BN_CTX_free(context)
         }
         guard let input, let n, let e, let result, let context, BN_num_bits(n) == 2048, BN_num_bits(e) >= 2, BN_is_odd(e) == 1,
-            BN_cmp(input, n) < 0, BN_mod_exp(result, input, e, n, context) == 1
+              BN_cmp(input, n) < 0, BN_mod_exp(result, input, e, n, context) == 1
         else { throw SAPError.cryptoFailure }
         var output = [UInt8](repeating: 0, count: 256)
         guard BN_bn2binpad(result, &output, 256) == 256 else { throw SAPError.cryptoFailure }

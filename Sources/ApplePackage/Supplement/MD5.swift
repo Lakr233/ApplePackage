@@ -8,9 +8,9 @@
 import CryptoKit
 import Foundation
 
-extension String {
+public extension String {
     /// Lowercase hex MD5 digest, used to derive stable on-disk account paths.
-    public var md5: String {
+    var md5: String {
         Insecure.MD5.hash(data: Data(utf8))
             .map { String(format: "%02x", $0) }
             .joined()

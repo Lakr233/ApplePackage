@@ -12,7 +12,7 @@ import Foundation
 struct Search: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "search",
-        abstract: "Search for apps"
+        abstract: "Search for apps",
     )
 
     @Argument(help: "Search term")
@@ -32,7 +32,7 @@ struct Search: AsyncParsableCommand, Sendable {
             term: term,
             countryCode: country,
             limit: limit,
-            entityType: platform.entityType
+            entityType: platform.entityType,
         )
         for app in results {
             print("\(app.id) \(app.bundleID): \(app.name)")

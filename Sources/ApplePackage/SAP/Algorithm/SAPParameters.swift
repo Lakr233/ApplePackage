@@ -13,7 +13,7 @@ struct SAPParameters: Sendable {
     static let terminalOrder = [13, 4, 8, 9, 14, 1, 7, 15, 12, 2, 6, 0, 11, 3, 10, 5]
 
     static func prepare(
-        _ material: [UInt8], initialCache: [UInt32], terminalCache: [UInt32]
+        _ material: [UInt8], initialCache: [UInt32], terminalCache: [UInt32],
     ) throws -> SAPParameters {
         guard material.count == 576 else {
             throw SAPError.invalidInput("Expected 576 material bytes")
@@ -24,7 +24,7 @@ struct SAPParameters: Sendable {
         var initial = initialCache
         var terminal = terminalCache
         for (row, slot) in initialOrder.enumerated() where initial[slot] == 0 {
-            initial[slot] = pairWord(material, source: 0x180 + 4 * row, mask: 4 * (row % 4)) ^ 0xe62818fc
+            initial[slot] = pairWord(material, source: 0x180 + 4 * row, mask: 4 * (row % 4)) ^ 0xE628_18FC
         }
         for (row, slot) in terminalOrder.enumerated() where terminal[slot] == 0 {
             let source: Int
@@ -39,18 +39,18 @@ struct SAPParameters: Sendable {
                 source = 0x138 + 4 * row
                 mask = 4 * row + 8
             }
-            terminal[slot] = pairWord(material, source: source, mask: mask) ^ 0xaf615514
+            terminal[slot] = pairWord(material, source: source, mask: mask) ^ 0xAF61_5514
         }
         let field: [UInt8] = (0 ..< 16).map { index in
             let left = (3 * index + 7) % 16
             let right = (11 * index + 2) % 16
-            let a = Int(material[0x1e0 + left] ^ material[0x70 + left])
+            let a = Int(material[0x1E0 + left] ^ material[0x70 + left])
             let b = Int(material[0x20 + right] ^ material[0x70 + right])
-            return UInt8(((a - b) & 255) ^ 0x2d)
+            return UInt8(((a - b) & 255) ^ 0x2D)
         }
         let seeds: [UInt8] = [
-            material[0x1f2] ^ material[0x72], material[0x1f7] ^ material[0x1e7], 0x24,
-            material[0x1eb] ^ material[0x2b], material[0x75] ^ material[0x1f5], 0x11,
+            material[0x1F2] ^ material[0x72], material[0x1F7] ^ material[0x1E7], 0x24,
+            material[0x1EB] ^ material[0x2B], material[0x75] ^ material[0x1F5], 0x11,
             material[0x23] ^ material[0x73],
         ]
         var raw: [[UInt32]] = []
@@ -58,12 +58,12 @@ struct SAPParameters: Sendable {
             var physical: [UInt32] = []
             for column in 0 ..< 4 {
                 let index = 4 * row + 36 * column
-                physical.append(pairWord(material, source: 0x130 + index, mask: index) &+ 0x2186d6ff)
+                physical.append(pairWord(material, source: 0x130 + index, mask: index) &+ 0x2186_D6FF)
             }
             raw.append([physical[1], physical[3], physical[0], physical[2]])
         }
         raw.reverse()
-        let offsets = [0x100, 0x30, 0xa0, 0x80, 0x50, 0, 0xc0, 0x1c0, 0x200]
+        let offsets = [0x100, 0x30, 0xA0, 0x80, 0x50, 0, 0xC0, 0x1C0, 0x200]
         let pairs = [
             (0, 1), (8, 9), (22, 23), (28, 29), (20, 21), (30, 31), (24, 25), (14, 15),
             (2, 3), (12, 13), (6, 7), (16, 17), (4, 5), (26, 27), (18, 19), (10, 11),
@@ -73,7 +73,7 @@ struct SAPParameters: Sendable {
         }
         return SAPParameters(
             initialCoefficients: initial, terminalCoefficients: terminal,
-            initialField: field, terminalSeeds: seeds, rawWords: raw, roundKeys: keys
+            initialField: field, terminalSeeds: seeds, rawWords: raw, roundKeys: keys,
         )
     }
 

@@ -4,16 +4,16 @@ enum SAPF2Parameters {
     static let finalPositions = [0, 1, 4, 5, 8, 9, 12, 13, 2, 6, 10, 14, 3, 7, 11, 15]
 
     static let expansion: [(selection: [Int], whitening: UInt32)] = [
-        ([3], 0xE560499A),
-        ([0, 1, 2, 3, 4], 0x46BB6C52),
-        ([1, 3, 5], 0x474D880F),
-        ([2, 3, 6], 0x1E2681B4),
-        ([3, 7], 0xC7B4BBC9),
-        ([0, 1, 2, 3, 4, 8], 0x646F9EAE),
-        ([1, 3, 5, 9], 0x65997AA3),
-        ([2, 3, 6, 10], 0x3CF273D9),
-        ([3, 7, 11], 0xE560497C),
-        ([0, 1, 2, 3, 4, 8, 12], 0x46BB6C4D),
+        ([3], 0xE560_499A),
+        ([0, 1, 2, 3, 4], 0x46BB_6C52),
+        ([1, 3, 5], 0x474D_880F),
+        ([2, 3, 6], 0x1E26_81B4),
+        ([3, 7], 0xC7B4_BBC9),
+        ([0, 1, 2, 3, 4, 8], 0x646F_9EAE),
+        ([1, 3, 5, 9], 0x6599_7AA3),
+        ([2, 3, 6, 10], 0x3CF2_73D9),
+        ([3, 7, 11], 0xE560_497C),
+        ([0, 1, 2, 3, 4, 8, 12], 0x46BB_6C4D),
     ]
 
     static let keySelections: [[(shift: Int, words: [Int], whitening: UInt8, linear: Int)]] = [

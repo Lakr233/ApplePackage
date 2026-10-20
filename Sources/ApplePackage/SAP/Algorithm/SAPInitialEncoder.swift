@@ -7,7 +7,7 @@ struct SAPInitialEncoder: Sendable {
     private static let destinations = [4, 5, 1, 13, 15, 0, 9, 8, 16, -1, 12, 10, 11, 3, 2, 14]
 
     static func prepare(
-        auxiliary: [UInt32], coefficients: [UInt32], caches: [[UInt8]], projectionMask: UInt32
+        auxiliary: [UInt32], coefficients: [UInt32], caches: [[UInt8]], projectionMask: UInt32,
     ) throws -> SAPInitialEncoder {
         guard auxiliary.count == 256, coefficients.count == 16, caches.count == 16 else {
             throw SAPError.invalidInput("Invalid initial encoder table dimensions")
@@ -22,8 +22,8 @@ struct SAPInitialEncoder: Sendable {
             var table: [UInt8] = []
             table.reserveCapacity(256)
             for byte in 0 ..< 256 {
-                let word = auxiliary[byte ^ 0x2d] ^ coefficients[coefficient]
-                let index = Int(((word ^ 0x4ca88d12) & projectionMask) % UInt32(size))
+                let word = auxiliary[byte ^ 0x2D] ^ coefficients[coefficient]
+                let index = Int(((word ^ 0x4CA8_8D12) & projectionMask) % UInt32(size))
                 table.append(caches[cache][index])
             }
             tables.append(table)
@@ -58,26 +58,26 @@ struct SAPPreparedState: Sendable {
         }
         let material = source.material
         let parameters = try SAPParameters.prepare(
-            material, initialCache: source.initialCache, terminalCache: source.terminalCache
+            material, initialCache: source.initialCache, terminalCache: source.terminalCache,
         )
         var wordTables: [[UInt32]] = []
         var caches: [[UInt8]] = []
         for slot in 0 ..< 16 {
-            let a = Int(material[0x1f0 + slot] ^ material[0x70 + slot])
+            let a = Int(material[0x1F0 + slot] ^ material[0x70 + slot])
             let b = Int(material[0x20 + slot] ^ material[0x70 + slot])
             let wordMask = (a + b) & 255
             let byteTable = byteTables[40 + (79 * slot) % 144]
             wordTables.append(byteTable.map { source.auxiliaryWords0[Int($0) ^ wordMask] })
             let index = (13 * slot) % 16
-            let left = Int(material[0x1e0 + index] ^ material[0x70 + index])
+            let left = Int(material[0x1E0 + index] ^ material[0x70 + index])
             let right = Int(material[0x20 + index] ^ material[0x70 + index])
-            let sourceMask = ((left - right) & 255) ^ 0xfe
+            let sourceMask = ((left - right) & 255) ^ 0xFE
             let cacheTable = byteTables[184 + (9 * slot) % 16]
             caches.append(source.cache2.map { cacheTable[Int($0) ^ sourceMask] })
         }
         let initial = try SAPInitialEncoder.prepare(
             auxiliary: source.auxiliaryWords1, coefficients: parameters.initialCoefficients,
-            caches: caches, projectionMask: source.projectionMask
+            caches: caches, projectionMask: source.projectionMask,
         )
         return SAPPreparedState(parameters: parameters, initial: initial, wordTables: wordTables)
     }

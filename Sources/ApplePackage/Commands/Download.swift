@@ -12,7 +12,7 @@ public enum Download {
     public static func download(
         account: inout Account,
         app: Software,
-        externalVersionID: String? = nil
+        externalVersionID: String? = nil,
     ) async throws -> DownloadOutput {
         let client = Configuration.makeHTTPClient(redirectConfiguration: .disallow)
         defer { _ = client.shutdown() }
@@ -22,7 +22,7 @@ public enum Download {
             account: &account,
             app: app,
             deviceIdentifier: Configuration.deviceIdentifier,
-            externalVersionID: externalVersionID ?? ""
+            externalVersionID: externalVersionID ?? "",
         )
 
         if let failureType = dict["failureType"] as? String {
@@ -36,7 +36,7 @@ public enum Download {
                 if customerMessage == Strings.passwordChanged {
                     try ensureFailed(Strings.passwordTokenExpired)
                 }
-                if let customerMessage = customerMessage {
+                if let customerMessage {
                     try ensureFailed(customerMessage)
                 }
                 try ensureFailed("\(Strings.downloadFailed): \(failureType)")
@@ -69,7 +69,7 @@ public enum Download {
         let iTunesMetadata = try PropertyListSerialization.data(
             fromPropertyList: metadata,
             format: .binary,
-            options: 0
+            options: 0,
         )
 
         var sinfs: [Sinf] = []
@@ -91,7 +91,7 @@ public enum Download {
             sinfs: sinfs,
             bundleShortVersionString: version,
             bundleVersion: bundleVersion,
-            iTunesMetadata: iTunesMetadata
+            iTunesMetadata: iTunesMetadata,
         )
     }
 }

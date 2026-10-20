@@ -12,7 +12,7 @@ extension Configuration {
     /// Shared HTTP/1.1-only client used by all store requests.
     /// Callers own the returned client and must shut it down.
     static func makeHTTPClient(
-        redirectConfiguration: HTTPClient.Configuration.RedirectConfiguration
+        redirectConfiguration: HTTPClient.Configuration.RedirectConfiguration,
     ) -> HTTPClient {
         HTTPClient(
             eventLoopGroupProvider: .singleton,
@@ -21,9 +21,9 @@ extension Configuration {
                 redirectConfiguration: redirectConfiguration,
                 timeout: .init(
                     connect: .seconds(timeoutConnect),
-                    read: .seconds(timeoutRead)
-                )
-            ).then { $0.httpVersion = .http1Only }
+                    read: .seconds(timeoutRead),
+                ),
+            ).then { $0.httpVersion = .http1Only },
         )
     }
 }
