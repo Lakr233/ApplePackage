@@ -42,6 +42,7 @@ public enum VersionFinder {
             app: app,
             deviceIdentifier: Configuration.deviceIdentifier,
             externalVersionID: resolvedExternalVersionID,
+            entityType: entityType ?? .iPhone,
         )
 
         guard let items = dict["songList"] as? [[String: Any]], !items.isEmpty else {

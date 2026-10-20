@@ -13,6 +13,7 @@ public enum Download {
         account: inout Account,
         app: Software,
         externalVersionID: String? = nil,
+        entityType: EntityType = .iPhone,
     ) async throws -> DownloadOutput {
         let client = Configuration.makeHTTPClient(redirectConfiguration: .disallow)
         defer { _ = client.shutdown() }
@@ -23,6 +24,7 @@ public enum Download {
             app: app,
             deviceIdentifier: Configuration.deviceIdentifier,
             externalVersionID: externalVersionID ?? "",
+            entityType: entityType,
         )
 
         if let failureType = dict["failureType"] as? String {

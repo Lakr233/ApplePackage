@@ -54,4 +54,4 @@ jobs:
 
       - name: Run offline unit tests
         if: matrix.platform == 'macOS'
-        run: swift test --filter 'ApplePackageAccountTests|ApplePackageConfigurationTests|LockedStateTests|SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests|SAPHandshakeTests|LoginArgumentsTests'
+        run: swift test --filter 'ApplePackageAccountTests|ApplePackageConfigurationTests|LockedStateTests|SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests|SAPHandshakeTests|StoreDownloadRecoveryTests|LoginArgumentsTests'

@@ -54,10 +54,14 @@ struct SAPHandshake {
         )
         let encrypted = try SAPCrypto.cbc(plaintext, key: encryptionKey, iv: iv, encrypt: true)
         let mac = try SAPCrypto.hmacSHA1(key: authenticationKey, message: encrypted)
-        request = Data(
-            [1, UInt8(certificate.serial.count)] + certificate.serial + keyBlock + iv + SAPBytes.be32(UInt32(encrypted.count)) + encrypted
-                + mac,
-        )
+        var request = Data([1, UInt8(certificate.serial.count)])
+        request.append(contentsOf: certificate.serial)
+        request.append(contentsOf: keyBlock)
+        request.append(contentsOf: iv)
+        request.append(contentsOf: SAPBytes.be32(UInt32(encrypted.count)))
+        request.append(contentsOf: encrypted)
+        request.append(contentsOf: mac)
+        self.request = request
         self.responseKey = responseKey
         self.responseEcho = responseEcho
         self.f2Material = f2Material
@@ -103,7 +107,7 @@ struct SAPHandshake {
             source: Data(fields[4]), f2Input1: Data(fields[2].map { $0 &+ 0x2D }), f2Input2: Data(f2Material.prefix(16)),
             f2Tail: Data(f2Material.dropFirst(16).map { $0 ^ 0x2D }), f3: Data(bytes[recordOffset ..< recordOffset + recordLength]),
             randomWords: words, randomCursor: random.cursor, seed30: seed30, seed54: seed54,
-            f1MaterialAddress: 0x4000_0000_0604 + (f2Material.count > 28 ? 16 : 0),
+            f1MaterialAddress: 0x4000_0000_0604 + UInt64(f2Material.count > 28 ? 16 : 0),
         )
     }
 }

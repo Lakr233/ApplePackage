@@ -11,6 +11,8 @@ import Foundation
 public enum Bag {
     public struct BagOutput {
         public var authEndpoint: URL
+        public var redownloadEndpoint: URL?
+        public var updateEndpoint: URL?
     }
 
     private static let defaultAuthEndpoint = "https://auth.itunes.apple.com/auth/v1/native/fast/"
@@ -61,6 +63,10 @@ public enum Bag {
             return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
         }
 
+        return parse(data)
+    }
+
+    static func parse(_ data: Data) -> BagOutput {
         let plistData = extractPlistData(from: data)
 
         guard
@@ -79,15 +85,26 @@ public enum Bag {
         let urlBag = plist["urlBag"] as? [String: Any] ?? [:]
         let authURLString = (plist["authenticateAccount"] as? String) ?? (urlBag["authenticateAccount"] as? String)
 
-        guard let authURLString,
-              let authURL = normalizedAuthEndpoint(from: authURLString)
-        else {
+        let authURL = authURLString.flatMap(normalizedAuthEndpoint) ?? URL(string: defaultAuthEndpoint)!
+        if authURLString == nil {
             APLogger.debug("bag: no authenticateAccount in plist, using default auth endpoint")
-            return BagOutput(authEndpoint: URL(string: defaultAuthEndpoint)!)
         }
 
         APLogger.info("bag: auth endpoint resolved to \(APLogger.safeURL(authURL.absoluteString))")
-        return BagOutput(authEndpoint: authURL)
+        return BagOutput(
+            authEndpoint: authURL,
+            redownloadEndpoint: downloadEndpoint(plist["redownloadProduct"] ?? urlBag["redownloadProduct"], path: "/r/redownload"),
+            updateEndpoint: downloadEndpoint(plist["updateProduct"] ?? urlBag["updateProduct"], path: "/up/updateProduct"),
+        )
+    }
+
+    private static func downloadEndpoint(_ value: Any?, path: String) -> URL? {
+        guard let value = value as? String, let url = URL(string: value),
+              url.scheme == "https", url.host == "downloaddispatch.itunes.apple.com",
+              url.path == path, url.user == nil, url.password == nil,
+              url.port == nil || url.port == 443, url.query == nil, url.fragment == nil
+        else { return nil }
+        return url
     }
 
     /// The bag advertises the native auth endpoint without the `/fast/` sub-path

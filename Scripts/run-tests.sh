@@ -21,7 +21,7 @@ COMMAND="${1:-all}"
 case "$COMMAND" in
     unit)
         echo "[*] Running unit tests..."
-        swift test --filter 'ApplePackageAccountTests|ApplePackageConfigurationTests|LockedStateTests|SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests|SAPHandshakeTests|LoginArgumentsTests'
+        swift test --filter 'ApplePackageAccountTests|ApplePackageConfigurationTests|LockedStateTests|SAPAuthenticationRequestTests|SAPSyntheticTests|SAPValidationTests|SAPHandshakeTests|StoreDownloadRecoveryTests|LoginArgumentsTests'
         ;;
     network)
         echo "[*] Running network tests..."

@@ -100,6 +100,20 @@ Verbose logs omit URL queries and redact every header except a small set of
 public transport metadata. Never commit real account identifiers, passwords,
 codes, cookies, tokens, signatures, or server-issued SAP state.
 
+## Download requests
+
+Legacy download and purchase requests use the authenticated account session;
+they do not use the login `X-Apple-ActionSignature`. Download recovery follows
+`volumeStoreDownloadProduct` → version-pinned `redownloadProduct` → `updateProduct`.
+The last step is attempted only for an empty HTTP 500 and only when Apple's bag
+advertises the approved update endpoint. Each endpoint is attempted at most once.
+Recovery responses must match the requested app, bundle identifier, and version.
+
+Compared with [ipatool's download implementation](https://github.com/majd/ipatool/blob/5dc4c8058db3a23e9de081ac766cc917713a65cf/pkg/appstore/appstore_download_product.go),
+ApplePackage does not yet implement the preferred `ent/download` path and its
+separate `kbsync` blob. That blob is not a SAP action signature. ipatool also signs
+purchase-history requests with SAP; ApplePackage does not expose that API.
+
 ## Distribution
 
 Release archives contain `ApplePackageTool`, `ApplePackage_ApplePackage.bundle`,
