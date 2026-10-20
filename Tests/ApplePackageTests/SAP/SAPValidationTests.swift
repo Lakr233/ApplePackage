@@ -51,25 +51,4 @@ final class SAPValidationTests: XCTestCase {
         let decoded = try JSONDecoder().decode(SAPSession.self, from: JSONSerialization.data(withJSONObject: object))
         XCTAssertThrowsError(try SAPSigner(session: decoded))
     }
-
-    func testMalformedSnapshotsAreRejected() throws {
-        XCTAssertThrowsError(try SAPSession(snapshot: Data("{}".utf8)))
-        XCTAssertThrowsError(try SAPSession(snapshot: Data("not JSON".utf8)))
-        let empty: [String: Any] = [
-            "phase": "post_handshake", "context": 0, "heap_base": 0, "heap_hex": "", "data_base": 0, "data_size": 0, "data_patches": [],
-            "allocator": ["heap_cursor": 0, "free_blocks": []],
-        ]
-        func snapshot(_ updates: [String: Any]) throws -> Data {
-            var object = empty
-            object.merge(updates) { _, replacement in replacement }
-            return try JSONSerialization.data(withJSONObject: object)
-        }
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot([:])))
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["phase": "signing"])))
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": -1])))
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": 67_108_865])))
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["heap_hex": "zz"])))
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": 64, "data_patches": [[64, "00"]]])))
-        XCTAssertThrowsError(try SAPSession(snapshot: snapshot(["data_size": 64, "data_patches": [[-1, "00"]]])))
-    }
 }

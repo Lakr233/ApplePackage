@@ -12,10 +12,6 @@ public actor SAPSigner {
     private var blob: [UInt8]?
     public private(set) var calls: UInt64 = 0
 
-    public init(snapshot: Data, ivAddress: UInt64 = 0x5000_007F_ED90, platform: UInt32 = 1) throws {
-        try self.init(session: SAPSession(snapshot: snapshot, ivAddress: ivAddress), platform: platform)
-    }
-
     public init(session: SAPSession, platform: UInt32 = 1) throws {
         try session.validate()
         let tables = try SAPStaticTables()

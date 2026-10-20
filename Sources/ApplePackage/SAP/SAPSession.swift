@@ -38,9 +38,4 @@ public struct SAPSession: Codable, Sendable {
               randomWords.count == 624
         else { throw SAPError.invalidInput("invalid logical session field lengths") }
     }
-
-    /// Decode an original complete `post_handshake` snapshot from the research exporter.
-    public init(snapshot: Data, ivAddress: UInt64 = 0x5000_007F_ED90) throws {
-        self = try SAPSnapshot.decode(snapshot, ivAddress: ivAddress)
-    }
 }
